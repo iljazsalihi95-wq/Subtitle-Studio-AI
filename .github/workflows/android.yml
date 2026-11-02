@@ -13,6 +13,16 @@ jobs:
           channel: stable
       - name: Generate Android platform files
         run: flutter create --platforms=android --project-name "$(grep '^name:' pubspec.yaml | awk '{print $2}')" .
+      - name: Install Android API 36 and set compileSdk
+        run: |
+          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platforms;android-36"
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('android/app/build.gradle.kts')
+          s = p.read_text()
+          s = s.replace('compileSdk = flutter.compileSdkVersion', 'compileSdk = 36')
+          p.write_text(s)
+          PY
       - name: Generate original launcher icons
         run: |
           python3 -m pip install --user Pillow

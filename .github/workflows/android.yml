@@ -17,6 +17,18 @@ jobs:
         run: |
           python3 -m pip install --user Pillow
           python3 scripts/generate_launcher_icons.py
+      - name: Verify custom launcher icons
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          from PIL import Image
+          for density, size in [('mdpi',48),('hdpi',72),('xhdpi',96),('xxhdpi',144),('xxxhdpi',192)]:
+              path = Path(f'android/app/src/main/res/mipmap-{density}/ic_launcher.png')
+              assert path.is_file(), f'Missing {path}'
+              with Image.open(path) as icon:
+                  assert icon.size == (size, size), f'Invalid icon size: {path}'
+          print('All five branded Android launcher icons verified')
+          PY
       - run: flutter pub get
       - run: flutter analyze
       - run: flutter test

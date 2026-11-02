@@ -33,7 +33,7 @@ class _HomePageState extends State<HomePage> {
 
   Future<void> _import() async {
     try {
-      final result = await FilePicker.platform.pickFiles(
+      final result = await FilePicker().pickFiles(
         type: FileType.custom,
         allowedExtensions: ['mp4', 'mkv', 'mov', 'webm', 'srt', 'vtt'],
         withData: true,

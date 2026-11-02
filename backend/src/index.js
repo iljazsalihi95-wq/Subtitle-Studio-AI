@@ -40,7 +40,11 @@ export default {
     const length = Number(request.headers.get('Content-Length') || 0);
     if (length > 24000) return json({ error: 'Request too large' }, 413);
     let body;
-    try { body = await request.json(); } catch { return json({ error: 'Invalid JSON' }, 400); }
+    try {
+      const raw = await request.text();
+      if (raw.length > 12000) return json({ error: 'Request too large' }, 413);
+      body = JSON.parse(raw);
+    } catch { return json({ error: 'Invalid JSON' }, 400); }
     const input = body?.text;
     if (typeof input !== 'string' || !input.trim() || input.length > MAX_CHARS) {
       return json({ error: 'text must contain 1–6000 characters' }, 400);

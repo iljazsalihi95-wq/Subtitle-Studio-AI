@@ -136,19 +136,46 @@ class _Status extends StatelessWidget {
   Widget build(BuildContext context) => const Row(children: [Icon(Icons.shield_outlined, size: 17, color: Color(0xFF7F91A8)), SizedBox(width: 8), Expanded(child: Text('Import lokal • pa kredenciale në aplikacion', style: TextStyle(color: Color(0xFF7F91A8), fontSize: 12)))]);
 }
 
-class _SubtitlePreviewPage extends StatelessWidget {
+class _SubtitlePreviewPage extends StatefulWidget {
   const _SubtitlePreviewPage({required this.filename, required this.cues});
   final String filename;
   final List<SubtitleCue> cues;
+  @override
+  State<_SubtitlePreviewPage> createState() => _SubtitlePreviewPageState();
+}
 
+class _SubtitlePreviewPageState extends State<_SubtitlePreviewPage> {
+  late final List<TextEditingController> translations;
+  @override
+  void initState() {
+    super.initState();
+    translations = widget.cues.map((cue) => TextEditingController(text: cue.translation)).toList();
+  }
+  @override
+  void dispose() {
+    for (final controller in translations) { controller.dispose(); }
+    super.dispose();
+  }
+  List<SubtitleCue> get editedCues => [for (var i = 0; i < widget.cues.length; i++) widget.cues[i].translated(translations[i].text)];
+  void _showExport(bool vtt) {
+    final output = vtt ? exportVtt(editedCues) : exportSrt(editedCues);
+    showDialog<void>(context: context, builder: (context) => AlertDialog(
+      title: Text(vtt ? 'Eksport VTT' : 'Eksport SRT'),
+      content: SizedBox(width: double.maxFinite, height: 320, child: SingleChildScrollView(child: SelectableText(output))),
+      actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Mbyll'))],
+    ));
+  }
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: Text(filename)),
+    appBar: AppBar(title: Text(widget.filename), actions: [
+      TextButton(onPressed: () => _showExport(false), child: const Text('SRT')),
+      TextButton(onPressed: () => _showExport(true), child: const Text('VTT')),
+    ]),
     body: SafeArea(child: ListView.builder(
       padding: const EdgeInsets.all(18),
-      itemCount: cues.length,
+      itemCount: widget.cues.length,
       itemBuilder: (context, index) {
-        final cue = cues[index];
+        final cue = widget.cues[index];
         String stamp(Duration value) => value.toString().split('.').first;
         return Card(child: Padding(
           padding: const EdgeInsets.all(16),
@@ -156,6 +183,8 @@ class _SubtitlePreviewPage extends StatelessWidget {
             Text('${index + 1}  •  ${stamp(cue.start)} → ${stamp(cue.end)}', style: const TextStyle(color: Color(0xFFE8C170))),
             const SizedBox(height: 8),
             SelectableText(cue.original, style: const TextStyle(fontSize: 17)),
+            const SizedBox(height: 12),
+            TextField(controller: translations[index], maxLines: null, decoration: const InputDecoration(labelText: 'Përkthimi shqip', border: OutlineInputBorder())),
           ]),
         ));
       },

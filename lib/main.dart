@@ -29,14 +29,22 @@ class _HomePageState extends State<HomePage> {
   String? selectedFile;
 
   Future<void> _import() async {
-    final result = await FilePicker.platform.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: ['mp4', 'mkv', 'mov', 'webm', 'srt', 'vtt'],
-    );
-    if (result == null || result.files.isEmpty) return;
-    setState(() => selectedFile = result.files.single.name);
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('U importua lokalisht: $selectedFile')));
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['mp4', 'mkv', 'mov', 'webm', 'srt', 'vtt'],
+      );
+      if (!mounted || result == null || result.files.isEmpty) return;
+      setState(() => selectedFile = result.files.single.name);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Skedari u zgjodh: $selectedFile. Përpunimi nuk është ende aktiv.')),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Skedari nuk mund të zgjidhej. Provo përsëri.')),
+      );
+    }
   }
 
   @override

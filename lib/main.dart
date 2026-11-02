@@ -1,4 +1,7 @@
+import 'dart:convert';
+
 import 'package:file_picker/file_picker.dart';
+import 'features/subtitles/srt_editor.dart';
 import 'package:flutter/material.dart';
 
 void main() => runApp(const StudioApp());
@@ -33,11 +36,21 @@ class _HomePageState extends State<HomePage> {
       final result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
         allowedExtensions: ['mp4', 'mkv', 'mov', 'webm', 'srt', 'vtt'],
+        withData: true,
       );
       if (!mounted || result == null || result.files.isEmpty) return;
-      setState(() => selectedFile = result.files.single.name);
+      final file = result.files.single;
+      setState(() => selectedFile = file.name);
+      if (['srt', 'vtt'].contains(file.extension?.toLowerCase()) && file.bytes != null) {
+        final cues = parseSubtitles(utf8.decode(file.bytes!, allowMalformed: true));
+        if (!mounted) return;
+        await Navigator.push(context, MaterialPageRoute<void>(
+          builder: (_) => _SubtitlePreviewPage(filename: file.name, cues: cues),
+        ));
+        return;
+      }
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Skedari u zgjodh: $selectedFile. Përpunimi nuk është ende aktiv.')),
+        SnackBar(content: Text('Skedari u zgjodh: $selectedFile. Importi i videos është në zhvillim.')),
       );
     } catch (_) {
       if (!mounted) return;
@@ -120,4 +133,32 @@ class _Status extends StatelessWidget {
   const _Status();
   @override
   Widget build(BuildContext context) => const Row(children: [Icon(Icons.shield_outlined, size: 17, color: Color(0xFF7F91A8)), SizedBox(width: 8), Expanded(child: Text('Import lokal • pa kredenciale në aplikacion', style: TextStyle(color: Color(0xFF7F91A8), fontSize: 12)))]);
+}
+
+class _SubtitlePreviewPage extends StatelessWidget {
+  const _SubtitlePreviewPage({required this.filename, required this.cues});
+  final String filename;
+  final List<SubtitleCue> cues;
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(title: Text(filename)),
+    body: SafeArea(child: ListView.builder(
+      padding: const EdgeInsets.all(18),
+      itemCount: cues.length,
+      itemBuilder: (context, index) {
+        final cue = cues[index];
+        String stamp(Duration value) => value.toString().split('.').first;
+        return Card(child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text('${index + 1}  •  ${stamp(cue.start)} → ${stamp(cue.end)}',
+              style: const TextStyle(color: Color(0xFFE8C170))),
+            const SizedBox(height: 8),
+            SelectableText(cue.original, style: const TextStyle(fontSize: 17)),
+          ]),
+        ));
+      },
+    )),
+  );
 }

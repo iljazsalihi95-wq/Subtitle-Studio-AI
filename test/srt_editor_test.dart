@@ -7,4 +7,18 @@ void main() {
     expect(exportSrt([cue]), contains('Përshëndetje'));
     expect(exportSrt([cue], translated: false), contains('Merhaba'));
   });
+  test('SRT import preserves cue timing and multiline text', () {
+    final cues = parseSubtitles('1\n00:00:01,000 --> 00:00:03,500\nHello\nworld');
+    expect(cues, hasLength(1));
+    expect(cues.single.original, 'Hello\nworld');
+    expect(cues.single.end.inMilliseconds, 3500);
+  });
+  test('WebVTT import accepts dot timestamps', () {
+    final cues = parseSubtitles('WEBVTT\n\n00:00:02.000 --> 00:00:04.200\nWelcome');
+    expect(cues.single.start.inSeconds, 2);
+    expect(cues.single.original, 'Welcome');
+  });
+  test('Rejects reversed timestamps', () {
+    expect(() => parseSubtitles('1\n00:00:04,000 --> 00:00:02,000\nBad'), throwsFormatException);
+  });
 }

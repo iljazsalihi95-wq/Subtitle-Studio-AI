@@ -27,7 +27,7 @@ String exportVtt(List<SubtitleCue> cues, {bool translated = true}) {
     final text = translated ? cue.translation : cue.original;
     final start = _timestamp(cue.start).replaceAll(',', '.');
     final end = _timestamp(cue.end).replaceAll(',', '.');
-    return '$start --> $end\\n$text';
-  }).join('\\n\\n');
-  return body.isEmpty ? 'WEBVTT\\n' : 'WEBVTT\\n\\n$body\\n';
+    return '$start --> $end\n$text';
+  }).join('\n\n');
+  return body.isEmpty ? 'WEBVTT\n' : 'WEBVTT\n\n$body\n';
 }

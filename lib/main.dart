@@ -1,8 +1,8 @@
 import 'dart:convert';
 
 import 'package:file_picker/file_picker.dart';
-import 'features/subtitles/srt_editor.dart';
 import 'package:flutter/material.dart';
+import 'features/subtitles/srt_editor.dart';
 
 void main() => runApp(const StudioApp());
 
@@ -33,22 +33,23 @@ class _HomePageState extends State<HomePage> {
 
   Future<void> _import() async {
     try {
-      final result = await FilePicker().pickFiles(
+      final files = await FilePicker.pickFiles(
         type: FileType.custom,
         allowedExtensions: ['mp4', 'mkv', 'mov', 'webm', 'srt', 'vtt'],
-        withData: true,
       );
-      if (!mounted || result == null || result.files.isEmpty) return;
-      final file = result.files.single;
+      if (!mounted || files.isEmpty) return;
+      final file = files.single;
       setState(() => selectedFile = file.name);
-      if (['srt', 'vtt'].contains(file.extension?.toLowerCase()) && file.bytes != null) {
-        final cues = parseSubtitles(utf8.decode(file.bytes!, allowMalformed: true));
+      if (['srt', 'vtt'].contains(file.extension?.toLowerCase())) {
+        final bytes = await file.readAsBytes();
+        final cues = parseSubtitles(utf8.decode(bytes, allowMalformed: true));
         if (!mounted) return;
         await Navigator.push(context, MaterialPageRoute<void>(
           builder: (_) => _SubtitlePreviewPage(filename: file.name, cues: cues),
         ));
         return;
       }
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Skedari u zgjodh: $selectedFile. Importi i videos është në zhvillim.')),
       );
@@ -152,8 +153,7 @@ class _SubtitlePreviewPage extends StatelessWidget {
         return Card(child: Padding(
           padding: const EdgeInsets.all(16),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text('${index + 1}  •  ${stamp(cue.start)} → ${stamp(cue.end)}',
-              style: const TextStyle(color: Color(0xFFE8C170))),
+            Text('${index + 1}  •  ${stamp(cue.start)} → ${stamp(cue.end)}', style: const TextStyle(color: Color(0xFFE8C170))),
             const SizedBox(height: 8),
             SelectableText(cue.original, style: const TextStyle(fontSize: 17)),
           ]),

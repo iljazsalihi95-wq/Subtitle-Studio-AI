@@ -18,6 +18,11 @@ void main() {
     expect(cues.single.start.inSeconds, 2);
     expect(cues.single.original, 'Welcome');
   });
+  test('Untranslated cues export original text instead of blank subtitles', () {
+    final cue = SubtitleCue(start: const Duration(seconds: 1), end: const Duration(seconds: 2), original: 'Original');
+    expect(exportSrt([cue]), contains('Original'));
+    expect(exportVtt([cue]), contains('Original'));
+  });
   test('Rejects reversed timestamps', () {
     expect(() => parseSubtitles('1\n00:00:04,000 --> 00:00:02,000\nBad'), throwsFormatException);
   });

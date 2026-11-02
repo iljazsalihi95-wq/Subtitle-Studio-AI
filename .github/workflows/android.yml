@@ -13,6 +13,10 @@ jobs:
           channel: stable
       - name: Generate Android platform files
         run: flutter create --platforms=android --project-name "$(grep '^name:' pubspec.yaml | awk '{print $2}')" .
+      - name: Generate original launcher icons
+        run: |
+          python3 -m pip install --user Pillow
+          python3 scripts/generate_launcher_icons.py
       - run: flutter pub get
       - run: flutter analyze
       - run: flutter test

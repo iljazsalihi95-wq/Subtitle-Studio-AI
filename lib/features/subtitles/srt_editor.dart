@@ -16,7 +16,7 @@ String _timestamp(Duration time) {
 String exportSrt(List<SubtitleCue> cues, {bool translated = true}) {
   return cues.asMap().entries.map((entry) {
     final cue = entry.value;
-    final text = translated ? cue.translation : cue.original;
+    final text = translated && cue.translation.trim().isNotEmpty ? cue.translation : cue.original;
     return '${entry.key + 1}\n${_timestamp(cue.start)} --> ${_timestamp(cue.end)}\n$text';
   }).join('\n\n');
 }
@@ -24,7 +24,7 @@ String exportSrt(List<SubtitleCue> cues, {bool translated = true}) {
 /// Exports WebVTT without changing the source cue timings.
 String exportVtt(List<SubtitleCue> cues, {bool translated = true}) {
   final body = cues.map((cue) {
-    final text = translated ? cue.translation : cue.original;
+    final text = translated && cue.translation.trim().isNotEmpty ? cue.translation : cue.original;
     final start = _timestamp(cue.start).replaceAll(',', '.');
     final end = _timestamp(cue.end).replaceAll(',', '.');
     return '$start --> $end\n$text';

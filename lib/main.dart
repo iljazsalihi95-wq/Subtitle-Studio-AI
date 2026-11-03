@@ -24,128 +24,64 @@ class StudioApp extends StatelessWidget {
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
-  @override
-  State<HomePage> createState() => _HomePageState();
+  @override State<HomePage> createState() => _HomePageState();
 }
 
 class _HomePageState extends State<HomePage> {
   String? selectedFile;
+  int tab = 0;
 
-  Future<void> _import() async {
-    try {
-      final files = await FilePicker.pickFiles(type: FileType.custom, allowedExtensions: ['mp4', 'mkv', 'mov', 'webm', 'srt', 'vtt']);
-      if (!mounted || files.isEmpty) return;
-      final file = files.single;
-      setState(() => selectedFile = file.name);
-      if (['srt', 'vtt'].contains(file.extension?.toLowerCase())) {
-        final bytes = await file.readAsBytes();
-        final cues = parseSubtitles(utf8.decode(bytes, allowMalformed: true));
-        if (!mounted) return;
-        await Navigator.push(context, MaterialPageRoute<void>(builder: (_) => SubtitlePreviewPage(filename: file.name, cues: cues)));
-        return;
-      }
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Videoja u zgjodh: $selectedFile. Transkriptimi AI lidhet përmes backend-it privat.')));
-    } catch (_) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Skedari nuk mund të zgjidhej. Provo përsëri.')));
-    }
-  }
-
-  Future<void> _openSubtitleStudio() async {
-    try {
-      final files = await FilePicker.pickFiles(type: FileType.custom, allowedExtensions: ['srt', 'vtt']);
-      if (!mounted || files.isEmpty) return;
-      final file = files.single;
+  Future<void> _pick(List<String> extensions) async {
+    final files = await FilePicker.pickFiles(type: FileType.custom, allowedExtensions: extensions);
+    if (!mounted || files.isEmpty) return;
+    final file = files.single;
+    setState(() => selectedFile = file.name);
+    if (['srt', 'vtt'].contains(file.extension?.toLowerCase())) {
       final cues = parseSubtitles(utf8.decode(await file.readAsBytes(), allowMalformed: true));
-      if (!mounted) return;
-      await Navigator.push(context, MaterialPageRoute<void>(builder: (_) => SubtitlePreviewPage(filename: file.name, cues: cues)));
-    } catch (_) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Titrat nuk mund të hapeshin.')));
+      if (mounted) await Navigator.push(context, MaterialPageRoute<void>(builder: (_) => SubtitlePreviewPage(filename: file.name, cues: cues)));
+    } else if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Videoja u zgjodh: ${file.name}. Transkriptimi AI lidhet vetëm përmes backend-it privat.')));
     }
   }
 
-  @override
-  Widget build(BuildContext context) => Scaffold(
-    body: SafeArea(child: ListView(padding: const EdgeInsets.fromLTRB(20, 18, 20, 28), children: [
-      const _Brand(), const SizedBox(height: 28),
-      Text('Studio profesionale për titrat e tu.', style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w800)),
-      const SizedBox(height: 8), const Text('Importo • kontrollo timeline-in • përkthe • eksporto', style: TextStyle(color: Color(0xFFB7C2D0), height: 1.45)),
-      const SizedBox(height: 24),
-      _Action(icon: Icons.video_file_outlined, title: 'Projekt i ri', subtitle: selectedFile ?? 'Video • SRT • VTT', primary: true, onTap: _import),
-      _Action(icon: Icons.subtitles_outlined, title: 'Studio e titrave', subtitle: 'Hap SRT/VTT • timeline • editor', onTap: _openSubtitleStudio),
-      const _Action(icon: Icons.translate, title: 'Përkthimi AI', subtitle: 'Shqip • ruaj timecode-et'),
-      const _Action(icon: Icons.ios_share_outlined, title: 'Eksporto', subtitle: 'SRT • VTT'),
-      const SizedBox(height: 18), const _Status(),
-    ])),
-    bottomNavigationBar: NavigationBar(selectedIndex: 0, destinations: const [
-      NavigationDestination(icon: Icon(Icons.home_outlined), selectedIcon: Icon(Icons.home), label: 'Ballina'),
-      NavigationDestination(icon: Icon(Icons.subtitles_outlined), label: 'Studio'),
-      NavigationDestination(icon: Icon(Icons.auto_awesome_outlined), label: 'AI'),
-      NavigationDestination(icon: Icon(Icons.folder_outlined), label: 'Projektet'),
-    ]),
-  );
-}
+  Widget _home() => ListView(padding: const EdgeInsets.fromLTRB(20,18,20,28), children: [
+    const _Brand(), const SizedBox(height:28),
+    Text('Studio profesionale për titrat e tu.', style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight:FontWeight.w800)),
+    const SizedBox(height:8), const Text('Importo • kontrollo timeline-in • përkthe • eksporto', style:TextStyle(color:Color(0xFFB7C2D0))), const SizedBox(height:24),
+    _Action(icon:Icons.video_file_outlined,title:'Projekt i ri',subtitle:selectedFile ?? 'Video • SRT • VTT',primary:true,onTap:()=>_pick(['mp4','mkv','mov','webm','srt','vtt'])),
+    _Action(icon:Icons.subtitles_outlined,title:'Studio e titrave',subtitle:'Hap SRT/VTT • timeline • editor',onTap:()=>_pick(['srt','vtt'])),
+    _Action(icon:Icons.translate,title:'Përkthimi AI',subtitle:'Shqip • ruaj timecode-et',onTap:()=>setState(()=>tab=2)),
+    _Action(icon:Icons.folder_open_outlined,title:'Projektet',subtitle:selectedFile ?? 'Asnjë projekt i hapur',onTap:()=>setState(()=>tab=3)),
+    const SizedBox(height:18), const _Status(),
+  ]);
 
-class _Brand extends StatelessWidget {
-  const _Brand();
-  @override
-  Widget build(BuildContext context) => const Row(children: [_Mark(), SizedBox(width: 14), Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text('SUBTITLE STUDIO AI', style: TextStyle(fontWeight: FontWeight.w900, letterSpacing: 1.4, fontSize: 17)), SizedBox(height: 3), Text('CREATE • TRANSLATE • SYNC', style: TextStyle(color: Color(0xFFE8C170), fontSize: 11, letterSpacing: 1.1))]))]);
-}
+  Widget _module(String title, String subtitle, IconData icon, List<Widget> children) => ListView(padding:const EdgeInsets.all(20), children:[
+    const _Brand(), const SizedBox(height:28), Icon(icon,size:56,color:const Color(0xFFE8C170)), const SizedBox(height:16), Text(title,style:Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight:FontWeight.w800)), const SizedBox(height:8), Text(subtitle,style:const TextStyle(color:Color(0xFFB7C2D0))), const SizedBox(height:24), ...children]);
 
-class _Mark extends StatelessWidget {
-  const _Mark();
-  @override
-  Widget build(BuildContext context) => Container(width: 58, height: 58, decoration: BoxDecoration(borderRadius: BorderRadius.circular(16), gradient: const LinearGradient(colors: [Color(0xFF263A55), Color(0xFF101D30)]), border: Border.all(color: const Color(0xFFE8C170), width: 1.2)), child: const Stack(alignment: Alignment.center, children: [Icon(Icons.movie_filter_outlined, color: Color(0xFFE8C170), size: 34), Positioned(bottom: 8, child: Text('CC', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w900)))]));
-}
-
-class _Action extends StatelessWidget {
-  const _Action({required this.icon, required this.title, required this.subtitle, this.primary = false, this.onTap});
-  final IconData icon; final String title, subtitle; final bool primary; final VoidCallback? onTap;
-  @override
-  Widget build(BuildContext context) => Padding(padding: const EdgeInsets.only(bottom: 12), child: Material(color: primary ? const Color(0xFF182A42) : const Color(0xFF101C2C), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18), side: BorderSide(color: primary ? const Color(0xFFE8C170).withValues(alpha: .65) : const Color(0xFF26364B))), clipBehavior: Clip.antiAlias, child: ListTile(onTap: onTap ?? () => _showStatus(context), contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8), leading: Container(width: 44, height: 44, decoration: BoxDecoration(color: const Color(0xFFE8C170).withValues(alpha: .10), borderRadius: BorderRadius.circular(13)), child: Icon(icon, color: const Color(0xFFE8C170))), title: Text(title, style: const TextStyle(fontWeight: FontWeight.w700)), subtitle: Text(subtitle, style: const TextStyle(color: Color(0xFF9EABBC))), trailing: const Icon(Icons.chevron_right, color: Color(0xFFE8C170)))));
-  void _showStatus(BuildContext context) => showModalBottomSheet<void>(context: context, showDragHandle: true, builder: (c) => SafeArea(child: Padding(padding: const EdgeInsets.all(24), child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [Text(title, style: Theme.of(context).textTheme.headlineSmall), const SizedBox(height: 12), Text(subtitle), const SizedBox(height: 18), const Text('Ky modul kërkon backend-in privat AI.', style: TextStyle(color: Colors.grey)), const SizedBox(height: 18), FilledButton(onPressed: () => Navigator.pop(c), child: const Text('Mbyll'))]))));
-}
-
-class _Status extends StatelessWidget {
-  const _Status();
-  @override
-  Widget build(BuildContext context) => const Row(children: [Icon(Icons.shield_outlined, size: 17, color: Color(0xFF7F91A8)), SizedBox(width: 8), Expanded(child: Text('Skedarët lokalë • pa API keys në APK', style: TextStyle(color: Color(0xFF7F91A8), fontSize: 12)))]);
-}
-
-class SubtitlePreviewPage extends StatefulWidget {
-  const SubtitlePreviewPage({super.key, required this.filename, required this.cues});
-  final String filename; final List<SubtitleCue> cues;
-  @override State<SubtitlePreviewPage> createState() => _SubtitlePreviewPageState();
-}
-
-class _SubtitlePreviewPageState extends State<SubtitlePreviewPage> {
-  late final List<TextEditingController> translations;
-  @override void initState() { super.initState(); translations = widget.cues.map((cue) => TextEditingController(text: cue.translation)).toList(); }
-  @override void dispose() { for (final controller in translations) { controller.dispose(); } super.dispose(); }
-  List<SubtitleCue> get editedCues => [for (var i = 0; i < widget.cues.length; i++) widget.cues[i].translated(translations[i].text)];
-  void _showExport(bool vtt) { final output = vtt ? exportVtt(editedCues) : exportSrt(editedCues); showDialog<void>(context: context, builder: (context) => AlertDialog(title: Text(vtt ? 'Eksport VTT' : 'Eksport SRT'), content: SizedBox(width: double.maxFinite, height: 320, child: SingleChildScrollView(child: SelectableText(output))), actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Mbyll'))])); }
-  @override
-  Widget build(BuildContext context) {
-    final report = validateTimeline(editedCues);
-    return Scaffold(appBar: AppBar(title: Text(widget.filename), actions: [TextButton(onPressed: () => _showExport(false), child: const Text('SRT')), TextButton(onPressed: () => _showExport(true), child: const Text('VTT'))]), body: SafeArea(child: ListView.builder(padding: const EdgeInsets.all(18), itemCount: widget.cues.length + 1, itemBuilder: (context, index) {
-      if (index == 0) return _TimelineBanner(report: report, cueCount: widget.cues.length);
-      final cueIndex = index - 1; final cue = widget.cues[cueIndex];
-      String stamp(Duration value) => value.toString().split('.').first;
-      final overlap = report.overlapIndexes.contains(cueIndex); final empty = report.emptyIndexes.contains(cueIndex);
-      return Card(color: overlap || empty ? const Color(0xFF3A241D) : null, child: Padding(padding: const EdgeInsets.all(16), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text('${cueIndex + 1}  •  ${stamp(cue.start)} → ${stamp(cue.end)}', style: const TextStyle(color: Color(0xFFE8C170))),
-        if (overlap || empty) Padding(padding: const EdgeInsets.only(top: 6), child: Text([if (overlap) 'Mbivendosje kohe', if (empty) 'Cue bosh'].join(' • '), style: const TextStyle(color: Color(0xFFFFB49D), fontWeight: FontWeight.w700))),
-        const SizedBox(height: 8), SelectableText(cue.original, style: const TextStyle(fontSize: 17)), const SizedBox(height: 12),
-        TextField(controller: translations[cueIndex], onChanged: (_) => setState(() {}), maxLines: null, decoration: const InputDecoration(labelText: 'Përkthimi shqip', border: OutlineInputBorder())),
-      ])));
-    })));
+  @override Widget build(BuildContext context) {
+    final pages=<Widget>[
+      _home(),
+      _module('Studio e titrave','Editor lokal SRT/VTT me kontroll timeline.',Icons.subtitles_outlined,[_Action(icon:Icons.file_open_outlined,title:'Hap titrat',subtitle:'SRT • VTT',primary:true,onTap:()=>_pick(['srt','vtt']))]),
+      _module('Përkthimi AI','AI përdoret vetëm përmes backend-it privat; asnjë API key nuk futet në APK.',Icons.auto_awesome_outlined,[const _Status()]),
+      _module('Projektet','Vazhdo me skedarin e fundit të zgjedhur.',Icons.folder_outlined,[_Action(icon:Icons.history,title:selectedFile ?? 'Asnjë projekt i hapur',subtitle:selectedFile==null?'Zgjidh një projekt nga Ballina':'Skedari aktual',onTap:selectedFile==null?()=>setState(()=>tab=0):null)]),
+    ];
+    return Scaffold(body:SafeArea(child:pages[tab]),bottomNavigationBar:NavigationBar(selectedIndex:tab,onDestinationSelected:(i)=>setState(()=>tab=i),destinations:const[
+      NavigationDestination(icon:Icon(Icons.home_outlined),selectedIcon:Icon(Icons.home),label:'Ballina'), NavigationDestination(icon:Icon(Icons.subtitles_outlined),label:'Studio'), NavigationDestination(icon:Icon(Icons.auto_awesome_outlined),label:'AI'), NavigationDestination(icon:Icon(Icons.folder_outlined),label:'Projektet') ]));
   }
 }
 
-class _TimelineBanner extends StatelessWidget {
-  const _TimelineBanner({required this.report, required this.cueCount});
-  final SubtitleTimelineReport report; final int cueCount;
-  @override Widget build(BuildContext context) => Container(margin: const EdgeInsets.only(bottom: 14), padding: const EdgeInsets.all(14), decoration: BoxDecoration(color: report.isClean ? const Color(0xFF102B27) : const Color(0xFF38271E), borderRadius: BorderRadius.circular(16)), child: Row(children: [Icon(report.isClean ? Icons.verified_outlined : Icons.warning_amber_rounded, color: const Color(0xFFE8C170)), const SizedBox(width: 10), Expanded(child: Text(report.isClean ? 'Timeline i pastër • $cueCount cue' : '${report.overlapIndexes.length} mbivendosje • ${report.emptyIndexes.length} cue bosh', style: const TextStyle(fontWeight: FontWeight.w700)))]));
+class _Brand extends StatelessWidget { const _Brand(); @override Widget build(BuildContext context)=>const Row(children:[_Mark(),SizedBox(width:14),Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text('SUBTITLE STUDIO AI',style:TextStyle(fontWeight:FontWeight.w900,letterSpacing:1.4,fontSize:17)),SizedBox(height:3),Text('CREATE • TRANSLATE • SYNC',style:TextStyle(color:Color(0xFFE8C170),fontSize:11,letterSpacing:1.1))]))]); }
+class _Mark extends StatelessWidget { const _Mark(); @override Widget build(BuildContext context)=>Container(width:58,height:58,decoration:BoxDecoration(borderRadius:BorderRadius.circular(16),gradient:const LinearGradient(colors:[Color(0xFF263A55),Color(0xFF101D30)]),border:Border.all(color:const Color(0xFFE8C170))),child:const Stack(alignment:Alignment.center,children:[Icon(Icons.movie_filter_outlined,color:Color(0xFFE8C170),size:34),Positioned(bottom:8,child:Text('CC',style:TextStyle(fontSize:9,fontWeight:FontWeight.w900)))])); }
+class _Action extends StatelessWidget { const _Action({required this.icon,required this.title,required this.subtitle,this.primary=false,this.onTap}); final IconData icon; final String title,subtitle; final bool primary; final VoidCallback? onTap; @override Widget build(BuildContext context)=>Padding(padding:const EdgeInsets.only(bottom:12),child:Material(color:primary?const Color(0xFF182A42):const Color(0xFF101C2C),shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(18),side:BorderSide(color:primary?const Color(0xFFE8C170):const Color(0xFF26364B))),clipBehavior:Clip.antiAlias,child:ListTile(onTap:onTap,contentPadding:const EdgeInsets.symmetric(horizontal:18,vertical:8),leading:Icon(icon,color:const Color(0xFFE8C170)),title:Text(title,style:const TextStyle(fontWeight:FontWeight.w700)),subtitle:Text(subtitle,style:const TextStyle(color:Color(0xFF9EABBC))),trailing:onTap==null?null:const Icon(Icons.chevron_right,color:Color(0xFFE8C170))))); }
+class _Status extends StatelessWidget { const _Status(); @override Widget build(BuildContext context)=>const Row(children:[Icon(Icons.shield_outlined,size:17,color:Color(0xFF7F91A8)),SizedBox(width:8),Expanded(child:Text('Skedarët lokalë • pa API keys në APK',style:TextStyle(color:Color(0xFF7F91A8),fontSize:12)))]); }
+
+class SubtitlePreviewPage extends StatefulWidget { const SubtitlePreviewPage({super.key,required this.filename,required this.cues}); final String filename; final List<SubtitleCue> cues; @override State<SubtitlePreviewPage> createState()=>_SubtitlePreviewPageState(); }
+class _SubtitlePreviewPageState extends State<SubtitlePreviewPage> {
+ late final List<TextEditingController> translations;
+ @override void initState(){super.initState();translations=widget.cues.map((c)=>TextEditingController(text:c.translation)).toList();}
+ @override void dispose(){for(final c in translations){c.dispose();}super.dispose();}
+ List<SubtitleCue> get editedCues=>[for(var i=0;i<widget.cues.length;i++)widget.cues[i].translated(translations[i].text)];
+ void _export(bool vtt){final output=vtt?exportVtt(editedCues):exportSrt(editedCues);showDialog<void>(context:context,builder:(c)=>AlertDialog(title:Text(vtt?'Eksport VTT':'Eksport SRT'),content:SizedBox(width:double.maxFinite,height:320,child:SingleChildScrollView(child:SelectableText(output))),actions:[TextButton(onPressed:()=>Navigator.pop(c),child:const Text('Mbyll'))]));}
+ @override Widget build(BuildContext context){final report=validateTimeline(editedCues);return Scaffold(appBar:AppBar(title:Text(widget.filename),actions:[TextButton(onPressed:()=>_export(false),child:const Text('SRT')),TextButton(onPressed:()=>_export(true),child:const Text('VTT'))]),body:SafeArea(child:ListView.builder(padding:const EdgeInsets.all(18),itemCount:widget.cues.length+1,itemBuilder:(context,index){if(index==0)return _TimelineBanner(report:report,cueCount:widget.cues.length);final i=index-1;final cue=widget.cues[i];final overlap=report.overlapIndexes.contains(i),empty=report.emptyIndexes.contains(i);return Card(color:overlap||empty?const Color(0xFF3A241D):null,child:Padding(padding:const EdgeInsets.all(16),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text('${i+1} • ${cue.start} → ${cue.end}',style:const TextStyle(color:Color(0xFFE8C170))),if(overlap||empty)Text([if(overlap)'Mbivendosje kohe',if(empty)'Cue bosh'].join(' • ')),const SizedBox(height:8),SelectableText(cue.original),const SizedBox(height:12),TextField(controller:translations[i],onChanged:(_)=>setState((){}),maxLines:null,decoration:const InputDecoration(labelText:'Përkthimi shqip',border:OutlineInputBorder()))])));}))));}
 }
+class _TimelineBanner extends StatelessWidget { const _TimelineBanner({required this.report,required this.cueCount}); final SubtitleTimelineReport report; final int cueCount; @override Widget build(BuildContext context)=>Container(margin:const EdgeInsets.only(bottom:14),padding:const EdgeInsets.all(14),decoration:BoxDecoration(color:report.isClean?const Color(0xFF102B27):const Color(0xFF38271E),borderRadius:BorderRadius.circular(16)),child:Text(report.isClean?'Timeline i pastër • $cueCount cue':'${report.overlapIndexes.length} mbivendosje • ${report.emptyIndexes.length} cue bosh',style:const TextStyle(fontWeight:FontWeight.w700))); }

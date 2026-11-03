@@ -64,7 +64,9 @@ Duration _parseTimestamp(String value) {
 /// Reads local SRT or WebVTT cues without changing their timing.
 List<SubtitleCue> parseSubtitles(String source) {
   final normalized = source.replaceAll('\r\n', '\n').replaceAll('\r', '\n').replaceFirst('\uFEFF', '');
-  final blocks = normalized.split(RegExp(r'\n\s*\n'));
+  final isVtt = normalized.startsWith('WEBVTT');
+  final body = isVtt ? normalized.replaceFirst(RegExp(r'^WEBVTT[^\n]*(?:\n[^\n]*)*?\n\s*\n'), '') : normalized;
+  final blocks = body.split(RegExp(r'\n\s*\n'));
   final cues = <SubtitleCue>[];
   for (final block in blocks) {
     final lines = block.trim().split('\n');

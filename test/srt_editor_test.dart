@@ -42,4 +42,17 @@ void main() {
     expect(report.emptyIndexes, [2]);
     expect(report.isClean, isFalse);
   });
+  test('shift timing preserves text and translation', () {
+    final cues = [SubtitleCue(start: const Duration(seconds: 2), end: const Duration(seconds: 4), original: 'Hello', translation: 'Përshëndetje')];
+    final shifted = shiftSubtitleTiming(cues, const Duration(milliseconds: -500));
+    expect(shifted.single.start, const Duration(milliseconds: 1500));
+    expect(shifted.single.end, const Duration(milliseconds: 3500));
+    expect(shifted.single.translation, 'Përshëndetje');
+    expect(cues.single.start, const Duration(seconds: 2));
+  });
+  test('shift refuses negative timestamps', () {
+    final cues = [SubtitleCue(start: const Duration(milliseconds: 100), end: const Duration(seconds: 2), original: 'Hi')];
+    expect(() => shiftSubtitleTiming(cues, const Duration(milliseconds: -200)), throwsFormatException);
+  });
+
 }

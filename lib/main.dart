@@ -67,6 +67,11 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
+  void _showModuleInfo(String title, String message) {
+    if (!mounted) return;
+    showModalBottomSheet<void>(context: context, showDragHandle: true, builder: (sheetContext) => SafeArea(child: Padding(padding: const EdgeInsets.all(24), child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [Text(title, style: Theme.of(sheetContext).textTheme.headlineSmall), const SizedBox(height: 12), Text(message), const SizedBox(height: 18), FilledButton(onPressed: () => Navigator.pop(sheetContext), child: const Text('Mbyll'))]))));
+  }
+
   @override
   Widget build(BuildContext context) => Scaffold(
     body: SafeArea(child: ListView(padding: const EdgeInsets.fromLTRB(20, 18, 20, 28), children: [
@@ -80,7 +85,7 @@ class _HomePageState extends State<HomePage> {
       const _Action(icon: Icons.ios_share_outlined, title: 'Eksporto', subtitle: 'SRT • VTT'),
       const SizedBox(height: 18), const _Status(),
     ])),
-    bottomNavigationBar: NavigationBar(selectedIndex: 0, destinations: const [
+    bottomNavigationBar: NavigationBar(selectedIndex: 0, onDestinationSelected: (index) { if (index == 1) { _openSubtitleStudio(); } else if (index == 2) { _showModuleInfo('Përkthimi AI', 'Përkthimi kërkon lidhjen me backend-in privat.'); } else if (index == 3) { _showModuleInfo('Projektet', 'Projektet ruhen lokalisht pasi të aktivizohet ruajtja e tyre.'); } }, destinations: const [
       NavigationDestination(icon: Icon(Icons.home_outlined), selectedIcon: Icon(Icons.home), label: 'Ballina'),
       NavigationDestination(icon: Icon(Icons.subtitles_outlined), label: 'Studio'),
       NavigationDestination(icon: Icon(Icons.auto_awesome_outlined), label: 'AI'),

@@ -65,7 +65,11 @@ Duration _parseTimestamp(String value) {
 List<SubtitleCue> parseSubtitles(String source) {
   final normalized = source.replaceAll('\r\n', '\n').replaceAll('\r', '\n').replaceFirst('\uFEFF', '');
   final isVtt = normalized.startsWith('WEBVTT');
-  final body = isVtt ? normalized.replaceFirst(RegExp(r'^WEBVTT[^\n]*(?:\n[^\n]*)*?\n\s*\n'), '') : normalized;
+  // The WebVTT header ends at its first blank line. Never consume cue blocks.
+  final headerEnd = normalized.indexOf(RegExp(r'\n\s*\n'));
+  final body = isVtt
+      ? (headerEnd < 0 ? '' : normalized.substring(headerEnd).trimLeft())
+      : normalized;
   final blocks = body.split(RegExp(r'\n\s*\n'));
   final cues = <SubtitleCue>[];
   for (final block in blocks) {

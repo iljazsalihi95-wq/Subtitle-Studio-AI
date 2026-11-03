@@ -45,31 +45,53 @@ class _HomePageState extends State<HomePage> {
         return;
       }
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Skedari u zgjodh: $selectedFile. Importi i videos është në zhvillim.')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Videoja u zgjodh: $selectedFile. Transkriptimi AI lidhet përmes backend-it privat.')));
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Skedari nuk mund të zgjidhej. Provo përsëri.')));
     }
   }
 
+  Future<void> _openSubtitleStudio() async {
+    try {
+      final files = await FilePicker.pickFiles(type: FileType.custom, allowedExtensions: ['srt', 'vtt']);
+      if (!mounted || files.isEmpty) return;
+      final file = files.single;
+      final cues = parseSubtitles(utf8.decode(await file.readAsBytes(), allowMalformed: true));
+      if (!mounted) return;
+      await Navigator.push(context, MaterialPageRoute<void>(builder: (_) => SubtitlePreviewPage(filename: file.name, cues: cues)));
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Titrat nuk mund të hapeshin.')));
+    }
+  }
+
   @override
-  Widget build(BuildContext context) => Scaffold(body: SafeArea(child: ListView(padding: const EdgeInsets.fromLTRB(20, 18, 20, 28), children: [
-        const _Brand(), const SizedBox(height: 28),
-        Text('Ktheje videon në titra të saktë.', style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w700)),
-        const SizedBox(height: 8), const Text('Importo materialin e autorizuar dhe puno lokalisht. AI cloud lidhet vetëm më vonë.', style: TextStyle(color: Color(0xFFB7C2D0), height: 1.45)),
-        const SizedBox(height: 24),
-        _Action(icon: Icons.video_file_outlined, title: 'Projekt i ri', subtitle: selectedFile ?? 'Importo video ose SRT/VTT', primary: true, onTap: _import),
-        const _Action(icon: Icons.subtitles_outlined, title: 'Studio e titrave', subtitle: 'Timeline • tekst origjinal • shqip'),
-        const _Action(icon: Icons.translate, title: 'Përkthimi', subtitle: 'Rishiko përkthimin pa ndryshuar kohët'),
-        const _Action(icon: Icons.ios_share_outlined, title: 'Eksporto', subtitle: 'SRT dhe VTT'),
-        const SizedBox(height: 18), const _Status(),
-      ])));
+  Widget build(BuildContext context) => Scaffold(
+    body: SafeArea(child: ListView(padding: const EdgeInsets.fromLTRB(20, 18, 20, 28), children: [
+      const _Brand(), const SizedBox(height: 28),
+      Text('Studio profesionale për titrat e tu.', style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w800)),
+      const SizedBox(height: 8), const Text('Importo • kontrollo timeline-in • përkthe • eksporto', style: TextStyle(color: Color(0xFFB7C2D0), height: 1.45)),
+      const SizedBox(height: 24),
+      _Action(icon: Icons.video_file_outlined, title: 'Projekt i ri', subtitle: selectedFile ?? 'Video • SRT • VTT', primary: true, onTap: _import),
+      _Action(icon: Icons.subtitles_outlined, title: 'Studio e titrave', subtitle: 'Hap SRT/VTT • timeline • editor', onTap: _openSubtitleStudio),
+      const _Action(icon: Icons.translate, title: 'Përkthimi AI', subtitle: 'Shqip • ruaj timecode-et'),
+      const _Action(icon: Icons.ios_share_outlined, title: 'Eksporto', subtitle: 'SRT • VTT'),
+      const SizedBox(height: 18), const _Status(),
+    ])),
+    bottomNavigationBar: NavigationBar(selectedIndex: 0, destinations: const [
+      NavigationDestination(icon: Icon(Icons.home_outlined), selectedIcon: Icon(Icons.home), label: 'Ballina'),
+      NavigationDestination(icon: Icon(Icons.subtitles_outlined), label: 'Studio'),
+      NavigationDestination(icon: Icon(Icons.auto_awesome_outlined), label: 'AI'),
+      NavigationDestination(icon: Icon(Icons.folder_outlined), label: 'Projektet'),
+    ]),
+  );
 }
 
 class _Brand extends StatelessWidget {
   const _Brand();
   @override
-  Widget build(BuildContext context) => const Row(children: [_Mark(), SizedBox(width: 14), Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text('SUBTITLE STUDIO', style: TextStyle(fontWeight: FontWeight.w800, letterSpacing: 1.6, fontSize: 17)), SizedBox(height: 3), Text('AI • PRIVATE STUDIO', style: TextStyle(color: Color(0xFFE8C170), fontSize: 11, letterSpacing: 1.2))]))]);
+  Widget build(BuildContext context) => const Row(children: [_Mark(), SizedBox(width: 14), Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text('SUBTITLE STUDIO AI', style: TextStyle(fontWeight: FontWeight.w900, letterSpacing: 1.4, fontSize: 17)), SizedBox(height: 3), Text('CREATE • TRANSLATE • SYNC', style: TextStyle(color: Color(0xFFE8C170), fontSize: 11, letterSpacing: 1.1))]))]);
 }
 
 class _Mark extends StatelessWidget {
@@ -83,13 +105,13 @@ class _Action extends StatelessWidget {
   final IconData icon; final String title, subtitle; final bool primary; final VoidCallback? onTap;
   @override
   Widget build(BuildContext context) => Padding(padding: const EdgeInsets.only(bottom: 12), child: Material(color: primary ? const Color(0xFF182A42) : const Color(0xFF101C2C), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18), side: BorderSide(color: primary ? const Color(0xFFE8C170).withValues(alpha: .65) : const Color(0xFF26364B))), clipBehavior: Clip.antiAlias, child: ListTile(onTap: onTap ?? () => _showStatus(context), contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8), leading: Container(width: 44, height: 44, decoration: BoxDecoration(color: const Color(0xFFE8C170).withValues(alpha: .10), borderRadius: BorderRadius.circular(13)), child: Icon(icon, color: const Color(0xFFE8C170))), title: Text(title, style: const TextStyle(fontWeight: FontWeight.w700)), subtitle: Text(subtitle, style: const TextStyle(color: Color(0xFF9EABBC))), trailing: const Icon(Icons.chevron_right, color: Color(0xFFE8C170)))));
-  void _showStatus(BuildContext context) => showModalBottomSheet<void>(context: context, showDragHandle: true, builder: (c) => SafeArea(child: Padding(padding: const EdgeInsets.all(24), child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [Text(title, style: Theme.of(context).textTheme.headlineSmall), const SizedBox(height: 12), Text(subtitle), const SizedBox(height: 18), const Text('Ky modul është në zhvillim.', style: TextStyle(color: Colors.grey)), const SizedBox(height: 18), FilledButton(onPressed: () => Navigator.pop(c), child: const Text('Mbyll'))]))));
+  void _showStatus(BuildContext context) => showModalBottomSheet<void>(context: context, showDragHandle: true, builder: (c) => SafeArea(child: Padding(padding: const EdgeInsets.all(24), child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [Text(title, style: Theme.of(context).textTheme.headlineSmall), const SizedBox(height: 12), Text(subtitle), const SizedBox(height: 18), const Text('Ky modul kërkon backend-in privat AI.', style: TextStyle(color: Colors.grey)), const SizedBox(height: 18), FilledButton(onPressed: () => Navigator.pop(c), child: const Text('Mbyll'))]))));
 }
 
 class _Status extends StatelessWidget {
   const _Status();
   @override
-  Widget build(BuildContext context) => const Row(children: [Icon(Icons.shield_outlined, size: 17, color: Color(0xFF7F91A8)), SizedBox(width: 8), Expanded(child: Text('Import lokal • pa kredenciale në aplikacion', style: TextStyle(color: Color(0xFF7F91A8), fontSize: 12)))]);
+  Widget build(BuildContext context) => const Row(children: [Icon(Icons.shield_outlined, size: 17, color: Color(0xFF7F91A8)), SizedBox(width: 8), Expanded(child: Text('Skedarët lokalë • pa API keys në APK', style: TextStyle(color: Color(0xFF7F91A8), fontSize: 12)))]);
 }
 
 class SubtitlePreviewPage extends StatefulWidget {

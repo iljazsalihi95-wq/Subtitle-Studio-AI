@@ -26,4 +26,14 @@ void main() {
   test('Rejects reversed timestamps', () {
     expect(() => parseSubtitles('1\n00:00:04,000 --> 00:00:02,000\nBad'), throwsFormatException);
   });
+  test('Timeline validation identifies overlaps and empty cues', () {
+    final report = validateTimeline(const [
+      SubtitleCue(start: Duration(seconds: 1), end: Duration(seconds: 4), original: 'One'),
+      SubtitleCue(start: Duration(seconds: 3), end: Duration(seconds: 5), original: 'Two'),
+      SubtitleCue(start: Duration(seconds: 6), end: Duration(seconds: 7), original: '   '),
+    ]);
+    expect(report.overlapIndexes, [1]);
+    expect(report.emptyIndexes, [2]);
+    expect(report.isClean, isFalse);
+  });
 }

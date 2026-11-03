@@ -6,6 +6,27 @@ class SubtitleCue {
   final String translation;
   SubtitleCue translated(String text) => SubtitleCue(start: start, end: end, original: original, translation: text);
 }
+
+class SubtitleTimelineReport {
+  const SubtitleTimelineReport({required this.overlapIndexes, required this.emptyIndexes});
+  final List<int> overlapIndexes;
+  final List<int> emptyIndexes;
+  bool get isClean => overlapIndexes.isEmpty && emptyIndexes.isEmpty;
+}
+
+/// Checks imported/edited cues without changing their timing.
+/// Indexes are zero-based so the UI can jump directly to the affected cue.
+SubtitleTimelineReport validateTimeline(List<SubtitleCue> cues) {
+  final overlaps = <int>[];
+  final empty = <int>[];
+  for (var i = 0; i < cues.length; i++) {
+    final cue = cues[i];
+    if (cue.original.trim().isEmpty && cue.translation.trim().isEmpty) empty.add(i);
+    if (i > 0 && cue.start < cues[i - 1].end) overlaps.add(i);
+  }
+  return SubtitleTimelineReport(overlapIndexes: overlaps, emptyIndexes: empty);
+}
+
 String _timestamp(Duration time) {
   final hours = time.inHours.toString().padLeft(2, '0');
   final minutes = (time.inMinutes % 60).toString().padLeft(2, '0');

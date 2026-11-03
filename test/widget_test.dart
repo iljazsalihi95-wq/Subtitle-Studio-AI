@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:subtitle_studio_ai/features/subtitles/srt_editor.dart';
 import 'package:subtitle_studio_ai/main.dart';

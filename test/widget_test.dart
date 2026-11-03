@@ -4,13 +4,13 @@ import 'package:subtitle_studio_ai/features/subtitles/srt_editor.dart';
 import 'package:subtitle_studio_ai/main.dart';
 
 void main() {
-  testWidgets('Home opens and inactive studio card explains status', (tester) async {
+  testWidgets('Home exposes the functional subtitle studio entry', (tester) async {
     await tester.pumpWidget(const StudioApp());
     expect(find.byType(HomePage), findsOneWidget);
     expect(find.text('Projekt i ri'), findsOneWidget);
-    await tester.tap(find.text('Studio e titrave'));
-    await tester.pumpAndSettle();
-    expect(find.textContaining('Ky modul është në zhvillim'), findsOneWidget);
+    expect(find.text('Studio e titrave'), findsOneWidget);
+    expect(find.text('Hap SRT/VTT • timeline • editor'), findsOneWidget);
+    expect(find.text('Skedarët lokalë • pa API keys në APK'), findsOneWidget);
   });
 
   testWidgets('Subtitle editor shows timeline overlap warning', (tester) async {

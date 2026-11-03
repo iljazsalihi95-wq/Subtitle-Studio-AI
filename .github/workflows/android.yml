@@ -19,8 +19,7 @@ jobs:
           python3 - <<'PY'
           from pathlib import Path
           p = Path('android/app/build.gradle.kts')
-          s = p.read_text()
-          s = s.replace('compileSdk = flutter.compileSdkVersion', 'compileSdk = 36')
+          s = p.read_text().replace('compileSdk = flutter.compileSdkVersion', 'compileSdk = 36')
           p.write_text(s)
           PY
       - name: Generate original launcher icons
@@ -42,16 +41,31 @@ jobs:
       - run: flutter pub get
       - run: flutter analyze
       - run: flutter test
-      - run: flutter build apk --debug
-      - name: Verify APK and produce SHA-256 checksum
+      - name: Build universal debug APK
+        run: flutter build apk --debug
+      - name: Build Samsung S23 arm64 APK
+        run: flutter build apk --debug --split-per-abi
+      - name: Verify APKs and produce SHA-256 checksums
         run: |
-          test -s build/app/outputs/flutter-apk/app-debug.apk
-          cd build/app/outputs/flutter-apk
+          set -e
+          OUT=build/app/outputs/flutter-apk
+          test -s "$OUT/app-debug.apk"
+          test -s "$OUT/app-arm64-v8a-debug.apk"
+          unzip -l "$OUT/app-arm64-v8a-debug.apk" | grep -q 'lib/arm64-v8a/libflutter.so'
+          cd "$OUT"
           sha256sum app-debug.apk > app-debug.apk.sha256
-          ls -lh app-debug.apk
+          sha256sum app-arm64-v8a-debug.apk > app-arm64-v8a-debug.apk.sha256
+          ls -lh app-debug.apk app-arm64-v8a-debug.apk
+          echo 'Samsung S23 arm64-v8a APK verified'
       - uses: actions/upload-artifact@v4
         with:
           name: android-debug-apk
           path: |
             build/app/outputs/flutter-apk/app-debug.apk
             build/app/outputs/flutter-apk/app-debug.apk.sha256
+      - uses: actions/upload-artifact@v4
+        with:
+          name: samsung-s23-arm64-debug-apk
+          path: |
+            build/app/outputs/flutter-apk/app-arm64-v8a-debug.apk
+            build/app/outputs/flutter-apk/app-arm64-v8a-debug.apk.sha256

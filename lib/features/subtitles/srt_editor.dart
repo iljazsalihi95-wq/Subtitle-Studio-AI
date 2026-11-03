@@ -7,6 +7,25 @@ class SubtitleCue {
   SubtitleCue translated(String text) => SubtitleCue(start: start, end: end, original: original, translation: text);
 }
 
+
+/// Moves all cue timestamps by [offset] without modifying text.
+/// Rejects shifts that would place a subtitle before the start of the video.
+List<SubtitleCue> shiftSubtitleTiming(List<SubtitleCue> cues, Duration offset) {
+  final delta = offset.inMilliseconds;
+  if (cues.any((cue) => cue.start.inMilliseconds + delta < 0)) {
+    throw const FormatException('Subtitle timing cannot be negative');
+  }
+  return [
+    for (final cue in cues)
+      SubtitleCue(
+        start: Duration(milliseconds: cue.start.inMilliseconds + delta),
+        end: Duration(milliseconds: cue.end.inMilliseconds + delta),
+        original: cue.original,
+        translation: cue.translation,
+      ),
+  ];
+}
+
 class SubtitleTimelineReport {
   const SubtitleTimelineReport({required this.overlapIndexes, required this.emptyIndexes});
   final List<int> overlapIndexes;

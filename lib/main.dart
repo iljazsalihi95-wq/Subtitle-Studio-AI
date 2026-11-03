@@ -33,10 +33,7 @@ class _HomePageState extends State<HomePage> {
 
   Future<void> _import() async {
     try {
-      final files = await FilePicker.pickFiles(
-        type: FileType.custom,
-        allowedExtensions: ['mp4', 'mkv', 'mov', 'webm', 'srt', 'vtt'],
-      );
+      final files = await FilePicker.pickFiles(type: FileType.custom, allowedExtensions: ['mp4', 'mkv', 'mov', 'webm', 'srt', 'vtt']);
       if (!mounted || files.isEmpty) return;
       final file = files.single;
       setState(() => selectedFile = file.name);
@@ -44,89 +41,48 @@ class _HomePageState extends State<HomePage> {
         final bytes = await file.readAsBytes();
         final cues = parseSubtitles(utf8.decode(bytes, allowMalformed: true));
         if (!mounted) return;
-        await Navigator.push(context, MaterialPageRoute<void>(
-          builder: (_) => _SubtitlePreviewPage(filename: file.name, cues: cues),
-        ));
+        await Navigator.push(context, MaterialPageRoute<void>(builder: (_) => SubtitlePreviewPage(filename: file.name, cues: cues)));
         return;
       }
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Skedari u zgjodh: $selectedFile. Importi i videos është në zhvillim.')),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Skedari u zgjodh: $selectedFile. Importi i videos është në zhvillim.')));
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Skedari nuk mund të zgjidhej. Provo përsëri.')),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Skedari nuk mund të zgjidhej. Provo përsëri.')));
     }
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-        body: SafeArea(
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
-            children: [
-              const _Brand(),
-              const SizedBox(height: 28),
-              Text('Ktheje videon në titra të saktë.', style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w700)),
-              const SizedBox(height: 8),
-              const Text('Importo materialin e autorizuar dhe puno lokalisht. AI cloud lidhet vetëm më vonë.', style: TextStyle(color: Color(0xFFB7C2D0), height: 1.45)),
-              const SizedBox(height: 24),
-              _Action(icon: Icons.video_file_outlined, title: 'Projekt i ri', subtitle: selectedFile ?? 'Importo video ose SRT/VTT', primary: true, onTap: _import),
-              const _Action(icon: Icons.subtitles_outlined, title: 'Studio e titrave', subtitle: 'Timeline • tekst origjinal • shqip'),
-              const _Action(icon: Icons.translate, title: 'Përkthimi', subtitle: 'Rishiko përkthimin pa ndryshuar kohët'),
-              const _Action(icon: Icons.ios_share_outlined, title: 'Eksporto', subtitle: 'SRT dhe VTT'),
-              const SizedBox(height: 18),
-              const _Status(),
-            ],
-          ),
-        ),
-      );
+  Widget build(BuildContext context) => Scaffold(body: SafeArea(child: ListView(padding: const EdgeInsets.fromLTRB(20, 18, 20, 28), children: [
+        const _Brand(), const SizedBox(height: 28),
+        Text('Ktheje videon në titra të saktë.', style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w700)),
+        const SizedBox(height: 8), const Text('Importo materialin e autorizuar dhe puno lokalisht. AI cloud lidhet vetëm më vonë.', style: TextStyle(color: Color(0xFFB7C2D0), height: 1.45)),
+        const SizedBox(height: 24),
+        _Action(icon: Icons.video_file_outlined, title: 'Projekt i ri', subtitle: selectedFile ?? 'Importo video ose SRT/VTT', primary: true, onTap: _import),
+        const _Action(icon: Icons.subtitles_outlined, title: 'Studio e titrave', subtitle: 'Timeline • tekst origjinal • shqip'),
+        const _Action(icon: Icons.translate, title: 'Përkthimi', subtitle: 'Rishiko përkthimin pa ndryshuar kohët'),
+        const _Action(icon: Icons.ios_share_outlined, title: 'Eksporto', subtitle: 'SRT dhe VTT'),
+        const SizedBox(height: 18), const _Status(),
+      ])));
 }
 
 class _Brand extends StatelessWidget {
   const _Brand();
   @override
-  Widget build(BuildContext context) => const Row(children: [
-        _Mark(), SizedBox(width: 14),
-        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text('SUBTITLE STUDIO', style: TextStyle(fontWeight: FontWeight.w800, letterSpacing: 1.6, fontSize: 17)),
-          SizedBox(height: 3), Text('AI • PRIVATE STUDIO', style: TextStyle(color: Color(0xFFE8C170), fontSize: 11, letterSpacing: 1.2)),
-        ])),
-      ]);
+  Widget build(BuildContext context) => const Row(children: [_Mark(), SizedBox(width: 14), Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text('SUBTITLE STUDIO', style: TextStyle(fontWeight: FontWeight.w800, letterSpacing: 1.6, fontSize: 17)), SizedBox(height: 3), Text('AI • PRIVATE STUDIO', style: TextStyle(color: Color(0xFFE8C170), fontSize: 11, letterSpacing: 1.2))]))]);
 }
 
 class _Mark extends StatelessWidget {
   const _Mark();
   @override
-  Widget build(BuildContext context) => Container(
-        width: 58, height: 58,
-        decoration: BoxDecoration(borderRadius: BorderRadius.circular(16), gradient: const LinearGradient(colors: [Color(0xFF263A55), Color(0xFF101D30)]), border: Border.all(color: const Color(0xFFE8C170), width: 1.2)),
-        child: const Stack(alignment: Alignment.center, children: [Icon(Icons.movie_filter_outlined, color: Color(0xFFE8C170), size: 34), Positioned(bottom: 8, child: Text('CC', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w900)))]),
-      );
+  Widget build(BuildContext context) => Container(width: 58, height: 58, decoration: BoxDecoration(borderRadius: BorderRadius.circular(16), gradient: const LinearGradient(colors: [Color(0xFF263A55), Color(0xFF101D30)]), border: Border.all(color: const Color(0xFFE8C170), width: 1.2)), child: const Stack(alignment: Alignment.center, children: [Icon(Icons.movie_filter_outlined, color: Color(0xFFE8C170), size: 34), Positioned(bottom: 8, child: Text('CC', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w900)))]));
 }
 
 class _Action extends StatelessWidget {
   const _Action({required this.icon, required this.title, required this.subtitle, this.primary = false, this.onTap});
   final IconData icon; final String title, subtitle; final bool primary; final VoidCallback? onTap;
   @override
-  Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.only(bottom: 12),
-        child: Material(
-          color: primary ? const Color(0xFF182A42) : const Color(0xFF101C2C),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18), side: BorderSide(color: primary ? const Color(0xFFE8C170).withValues(alpha: .65) : const Color(0xFF26364B))),
-          clipBehavior: Clip.antiAlias,
-          child: ListTile(
-            onTap: onTap ?? () => _showStatus(context),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
-            leading: Container(width: 44, height: 44, decoration: BoxDecoration(color: const Color(0xFFE8C170).withValues(alpha: .10), borderRadius: BorderRadius.circular(13)), child: Icon(icon, color: const Color(0xFFE8C170))),
-            title: Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
-            subtitle: Text(subtitle, style: const TextStyle(color: Color(0xFF9EABBC))),
-            trailing: const Icon(Icons.chevron_right, color: Color(0xFFE8C170)),
-          ),
-        ),
-      );
+  Widget build(BuildContext context) => Padding(padding: const EdgeInsets.only(bottom: 12), child: Material(color: primary ? const Color(0xFF182A42) : const Color(0xFF101C2C), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18), side: BorderSide(color: primary ? const Color(0xFFE8C170).withValues(alpha: .65) : const Color(0xFF26364B))), clipBehavior: Clip.antiAlias, child: ListTile(onTap: onTap ?? () => _showStatus(context), contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8), leading: Container(width: 44, height: 44, decoration: BoxDecoration(color: const Color(0xFFE8C170).withValues(alpha: .10), borderRadius: BorderRadius.circular(13)), child: Icon(icon, color: const Color(0xFFE8C170))), title: Text(title, style: const TextStyle(fontWeight: FontWeight.w700)), subtitle: Text(subtitle, style: const TextStyle(color: Color(0xFF9EABBC))), trailing: const Icon(Icons.chevron_right, color: Color(0xFFE8C170)))));
   void _showStatus(BuildContext context) => showModalBottomSheet<void>(context: context, showDragHandle: true, builder: (c) => SafeArea(child: Padding(padding: const EdgeInsets.all(24), child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [Text(title, style: Theme.of(context).textTheme.headlineSmall), const SizedBox(height: 12), Text(subtitle), const SizedBox(height: 18), const Text('Ky modul është në zhvillim.', style: TextStyle(color: Colors.grey)), const SizedBox(height: 18), FilledButton(onPressed: () => Navigator.pop(c), child: const Text('Mbyll'))]))));
 }
 
@@ -136,58 +92,38 @@ class _Status extends StatelessWidget {
   Widget build(BuildContext context) => const Row(children: [Icon(Icons.shield_outlined, size: 17, color: Color(0xFF7F91A8)), SizedBox(width: 8), Expanded(child: Text('Import lokal • pa kredenciale në aplikacion', style: TextStyle(color: Color(0xFF7F91A8), fontSize: 12)))]);
 }
 
-class _SubtitlePreviewPage extends StatefulWidget {
-  const _SubtitlePreviewPage({required this.filename, required this.cues});
-  final String filename;
-  final List<SubtitleCue> cues;
-  @override
-  State<_SubtitlePreviewPage> createState() => _SubtitlePreviewPageState();
+class SubtitlePreviewPage extends StatefulWidget {
+  const SubtitlePreviewPage({super.key, required this.filename, required this.cues});
+  final String filename; final List<SubtitleCue> cues;
+  @override State<SubtitlePreviewPage> createState() => _SubtitlePreviewPageState();
 }
 
-class _SubtitlePreviewPageState extends State<_SubtitlePreviewPage> {
+class _SubtitlePreviewPageState extends State<SubtitlePreviewPage> {
   late final List<TextEditingController> translations;
-  @override
-  void initState() {
-    super.initState();
-    translations = widget.cues.map((cue) => TextEditingController(text: cue.translation)).toList();
-  }
-  @override
-  void dispose() {
-    for (final controller in translations) { controller.dispose(); }
-    super.dispose();
-  }
+  @override void initState() { super.initState(); translations = widget.cues.map((cue) => TextEditingController(text: cue.translation)).toList(); }
+  @override void dispose() { for (final controller in translations) { controller.dispose(); } super.dispose(); }
   List<SubtitleCue> get editedCues => [for (var i = 0; i < widget.cues.length; i++) widget.cues[i].translated(translations[i].text)];
-  void _showExport(bool vtt) {
-    final output = vtt ? exportVtt(editedCues) : exportSrt(editedCues);
-    showDialog<void>(context: context, builder: (context) => AlertDialog(
-      title: Text(vtt ? 'Eksport VTT' : 'Eksport SRT'),
-      content: SizedBox(width: double.maxFinite, height: 320, child: SingleChildScrollView(child: SelectableText(output))),
-      actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Mbyll'))],
-    ));
-  }
+  void _showExport(bool vtt) { final output = vtt ? exportVtt(editedCues) : exportSrt(editedCues); showDialog<void>(context: context, builder: (context) => AlertDialog(title: Text(vtt ? 'Eksport VTT' : 'Eksport SRT'), content: SizedBox(width: double.maxFinite, height: 320, child: SingleChildScrollView(child: SelectableText(output))), actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Mbyll'))])); }
   @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: Text(widget.filename), actions: [
-      TextButton(onPressed: () => _showExport(false), child: const Text('SRT')),
-      TextButton(onPressed: () => _showExport(true), child: const Text('VTT')),
-    ]),
-    body: SafeArea(child: ListView.builder(
-      padding: const EdgeInsets.all(18),
-      itemCount: widget.cues.length,
-      itemBuilder: (context, index) {
-        final cue = widget.cues[index];
-        String stamp(Duration value) => value.toString().split('.').first;
-        return Card(child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text('${index + 1}  •  ${stamp(cue.start)} → ${stamp(cue.end)}', style: const TextStyle(color: Color(0xFFE8C170))),
-            const SizedBox(height: 8),
-            SelectableText(cue.original, style: const TextStyle(fontSize: 17)),
-            const SizedBox(height: 12),
-            TextField(controller: translations[index], maxLines: null, decoration: const InputDecoration(labelText: 'Përkthimi shqip', border: OutlineInputBorder())),
-          ]),
-        ));
-      },
-    )),
-  );
+  Widget build(BuildContext context) {
+    final report = validateTimeline(editedCues);
+    return Scaffold(appBar: AppBar(title: Text(widget.filename), actions: [TextButton(onPressed: () => _showExport(false), child: const Text('SRT')), TextButton(onPressed: () => _showExport(true), child: const Text('VTT'))]), body: SafeArea(child: ListView.builder(padding: const EdgeInsets.all(18), itemCount: widget.cues.length + 1, itemBuilder: (context, index) {
+      if (index == 0) return _TimelineBanner(report: report, cueCount: widget.cues.length);
+      final cueIndex = index - 1; final cue = widget.cues[cueIndex];
+      String stamp(Duration value) => value.toString().split('.').first;
+      final overlap = report.overlapIndexes.contains(cueIndex); final empty = report.emptyIndexes.contains(cueIndex);
+      return Card(color: overlap || empty ? const Color(0xFF3A241D) : null, child: Padding(padding: const EdgeInsets.all(16), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text('${cueIndex + 1}  •  ${stamp(cue.start)} → ${stamp(cue.end)}', style: const TextStyle(color: Color(0xFFE8C170))),
+        if (overlap || empty) Padding(padding: const EdgeInsets.only(top: 6), child: Text([if (overlap) 'Mbivendosje kohe', if (empty) 'Cue bosh'].join(' • '), style: const TextStyle(color: Color(0xFFFFB49D), fontWeight: FontWeight.w700))),
+        const SizedBox(height: 8), SelectableText(cue.original, style: const TextStyle(fontSize: 17)), const SizedBox(height: 12),
+        TextField(controller: translations[cueIndex], onChanged: (_) => setState(() {}), maxLines: null, decoration: const InputDecoration(labelText: 'Përkthimi shqip', border: OutlineInputBorder())),
+      ])));
+    })));
+  }
+}
+
+class _TimelineBanner extends StatelessWidget {
+  const _TimelineBanner({required this.report, required this.cueCount});
+  final SubtitleTimelineReport report; final int cueCount;
+  @override Widget build(BuildContext context) => Container(margin: const EdgeInsets.only(bottom: 14), padding: const EdgeInsets.all(14), decoration: BoxDecoration(color: report.isClean ? const Color(0xFF102B27) : const Color(0xFF38271E), borderRadius: BorderRadius.circular(16)), child: Row(children: [Icon(report.isClean ? Icons.verified_outlined : Icons.warning_amber_rounded, color: const Color(0xFFE8C170)), const SizedBox(width: 10), Expanded(child: Text(report.isClean ? 'Timeline i pastër • $cueCount cue' : '${report.overlapIndexes.length} mbivendosje • ${report.emptyIndexes.length} cue bosh', style: const TextStyle(fontWeight: FontWeight.w700)))]));
 }

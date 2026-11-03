@@ -18,6 +18,12 @@ void main() {
     expect(cues.single.start.inSeconds, 2);
     expect(cues.single.original, 'Welcome');
   });
+  test('WebVTT header with metadata preserves the first cue', () {
+    final cues = parseSubtitles('WEBVTT - Pilot\\nKind: captions\\n\\n00:00:01.000 --> 00:00:02.500\\nFirst cue\\n\\n00:00:03.000 --> 00:00:04.000\\nSecond cue');
+    expect(cues, hasLength(2));
+    expect(cues.first.original, 'First cue');
+    expect(cues.last.original, 'Second cue');
+  });
   test('Untranslated cues export original text instead of blank subtitles', () {
     final cue = SubtitleCue(start: const Duration(seconds: 1), end: const Duration(seconds: 2), original: 'Original');
     expect(exportSrt([cue]), contains('Original'));

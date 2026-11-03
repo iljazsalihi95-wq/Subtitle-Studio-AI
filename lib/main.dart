@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -139,7 +140,51 @@ class _SubtitlePreviewPageState extends State<SubtitlePreviewPage> {
   @override void initState() { super.initState(); timedCues = List.of(widget.cues); translations = timedCues.map((cue) => TextEditingController(text: cue.translation)).toList(); }
   @override void dispose() { for (final controller in translations) { controller.dispose(); } offsetMs.dispose(); super.dispose(); }
   List<SubtitleCue> get editedCues => [for (var i = 0; i < timedCues.length; i++) timedCues[i].translated(translations[i].text)];
-  void _showExport(bool vtt) { final output = vtt ? exportVtt(editedCues) : exportSrt(editedCues); showDialog<void>(context: context, builder: (context) => AlertDialog(title: Text(vtt ? 'Eksport VTT' : 'Eksport SRT'), content: SizedBox(width: double.maxFinite, height: 320, child: SingleChildScrollView(child: SelectableText(output))), actions: [TextButton.icon(onPressed: () async { await Clipboard.setData(ClipboardData(text: output)); if (!context.mounted) return; Navigator.pop(context); ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Titrat u kopjuan.'))); }, icon: const Icon(Icons.copy), label: const Text('Kopjo')), TextButton(onPressed: () => Navigator.pop(context), child: const Text('Mbyll'))])); }
+  void _showExport(bool vtt) { final output = vtt ? exportVtt(editedCues) : exportSrt(editedCues); showDialog<void>(context: context, builder: (context) => AlertDialog(title: Text(vtt ? 'Eksport VTT' : 'Eksport SRT'), content: SizedBox(width: double.maxFinite, height: 320, child: SingleChildScrollView(child: SelectableText(output))), actions: [TextButton.icon(onPressed: () async {
+    try {
+      final ext = vtt ? 'vtt' : 'srt';
+      final stem = widget.filename.replaceAll(RegExp(r'\\.[^.]+ if (!context.mounted) return; Navigator.pop(context); ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Titrat u kopjuan.'))); }, icon: const Icon(Icons.copy), label: const Text('Kopjo')), TextButton(onPressed: () => Navigator.pop(context), child: const Text('Mbyll'))])); }
+  @override
+  Widget build(BuildContext context) {
+    final report = validateTimeline(editedCues);
+    return Scaffold(appBar: AppBar(title: Text(widget.filename), actions: [TextButton(onPressed: () => _showExport(false), child: const Text('SRT')), TextButton(onPressed: () => _showExport(true), child: const Text('VTT'))]), body: SafeArea(child: ListView.builder(padding: const EdgeInsets.all(18), itemCount: timedCues.length + 1, itemBuilder: (context, index) {
+      if (index == 0) return Column(children: [ _TimelineBanner(report: report, cueCount: timedCues.length), Row(children: [Expanded(child: TextField(controller: offsetMs, keyboardType: const TextInputType.numberWithOptions(signed: true), decoration: const InputDecoration(labelText: 'Zhvendos kohën (ms)', hintText: '1500 ose -500', border: OutlineInputBorder()))), const SizedBox(width: 8), FilledButton(onPressed: _shift, child: const Text('Zbato'))]), const SizedBox(height: 16)]);
+      final cueIndex = index - 1; final cue = timedCues[cueIndex];
+      String stamp(Duration value) => value.toString().split('.').first;
+      final overlap = report.overlapIndexes.contains(cueIndex); final empty = report.emptyIndexes.contains(cueIndex);
+      return Card(color: overlap || empty ? const Color(0xFF3A241D) : null, child: Padding(padding: const EdgeInsets.all(16), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text('${cueIndex + 1}  •  ${stamp(cue.start)} → ${stamp(cue.end)}', style: const TextStyle(color: Color(0xFFE8C170))),
+        if (overlap || empty) Padding(padding: const EdgeInsets.only(top: 6), child: Text([if (overlap) 'Mbivendosje kohe', if (empty) 'Cue bosh'].join(' • '), style: const TextStyle(color: Color(0xFFFFB49D), fontWeight: FontWeight.w700))),
+        const SizedBox(height: 8), SelectableText(cue.original, style: const TextStyle(fontSize: 17)), const SizedBox(height: 12),
+        TextField(controller: translations[cueIndex], onChanged: (_) => setState(() {}), maxLines: null, decoration: const InputDecoration(labelText: 'Përkthimi shqip', border: OutlineInputBorder())),
+      ])));
+    })));
+  }
+}
+
+class _TimelineBanner extends StatelessWidget {
+  const _TimelineBanner({required this.report, required this.cueCount});
+  final SubtitleTimelineReport report; final int cueCount;
+  @override Widget build(BuildContext context) => Container(margin: const EdgeInsets.only(bottom: 14), padding: const EdgeInsets.all(14), decoration: BoxDecoration(color: report.isClean ? const Color(0xFF102B27) : const Color(0xFF38271E), borderRadius: BorderRadius.circular(16)), child: Row(children: [Icon(report.isClean ? Icons.verified_outlined : Icons.warning_amber_rounded, color: const Color(0xFFE8C170)), const SizedBox(width: 10), Expanded(child: Text(report.isClean ? 'Timeline i pastër • $cueCount cue' : '${report.overlapIndexes.length} mbivendosje • ${report.emptyIndexes.length} cue bosh', style: const TextStyle(fontWeight: FontWeight.w700)))]));
+}
+), '');
+      final result = await FilePicker.saveFile(
+        dialogTitle: 'Ruaj titrat',
+        fileName: '${stem}_edited.$ext',
+        type: FileType.custom,
+        allowedExtensions: [ext],
+        bytes: Uint8List.fromList(utf8.encode(output)),
+      );
+      if (!context.mounted) return;
+      if (result != null) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(this.context).showSnackBar(SnackBar(content: Text('Titrat u ruajtën: $result')));
+      }
+    } catch (_) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Ruajtja dështoi. Mund t’i kopjosh titrat.')));
+    }
+  }, icon: const Icon(Icons.save_alt), label: const Text('Ruaj skedarin')), TextButton.icon(onPressed: () async { await Clipboard.setData(ClipboardData(text: output)); if (!context.mounted) return; Navigator.pop(context); ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Titrat u kopjuan.'))); }, icon: const Icon(Icons.copy), label: const Text('Kopjo')), TextButton(onPressed: () => Navigator.pop(context), child: const Text('Mbyll'))])); }
   @override
   Widget build(BuildContext context) {
     final report = validateTimeline(editedCues);

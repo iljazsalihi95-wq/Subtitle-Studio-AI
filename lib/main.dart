@@ -128,16 +128,24 @@ class SubtitlePreviewPage extends StatefulWidget {
 
 class _SubtitlePreviewPageState extends State<SubtitlePreviewPage> {
   late final List<TextEditingController> translations;
-  @override void initState() { super.initState(); translations = widget.cues.map((cue) => TextEditingController(text: cue.translation)).toList(); }
-  @override void dispose() { for (final controller in translations) { controller.dispose(); } super.dispose(); }
-  List<SubtitleCue> get editedCues => [for (var i = 0; i < widget.cues.length; i++) widget.cues[i].translated(translations[i].text)];
+  late List<SubtitleCue> timedCues;
+  final TextEditingController offsetMs = TextEditingController(text: '0');
+  void _shift() {
+    final value = int.tryParse(offsetMs.text.trim());
+    if (value == null) { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Shkruaj milisekonda, p.sh. 1500 ose -500.'))); return; }
+    try { setState(() => timedCues = shiftSubtitleTiming(timedCues, Duration(milliseconds: value))); }
+    on FormatException { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Koha nuk mund të jetë negative.'))); }
+  }
+  @override void initState() { super.initState(); timedCues = List.of(widget.cues); translations = timedCues.map((cue) => TextEditingController(text: cue.translation)).toList(); }
+  @override void dispose() { for (final controller in translations) { controller.dispose(); } offsetMs.dispose(); super.dispose(); }
+  List<SubtitleCue> get editedCues => [for (var i = 0; i < timedCues.length; i++) timedCues[i].translated(translations[i].text)];
   void _showExport(bool vtt) { final output = vtt ? exportVtt(editedCues) : exportSrt(editedCues); showDialog<void>(context: context, builder: (context) => AlertDialog(title: Text(vtt ? 'Eksport VTT' : 'Eksport SRT'), content: SizedBox(width: double.maxFinite, height: 320, child: SingleChildScrollView(child: SelectableText(output))), actions: [TextButton.icon(onPressed: () async { await Clipboard.setData(ClipboardData(text: output)); if (!context.mounted) return; Navigator.pop(context); ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Titrat u kopjuan.'))); }, icon: const Icon(Icons.copy), label: const Text('Kopjo')), TextButton(onPressed: () => Navigator.pop(context), child: const Text('Mbyll'))])); }
   @override
   Widget build(BuildContext context) {
     final report = validateTimeline(editedCues);
-    return Scaffold(appBar: AppBar(title: Text(widget.filename), actions: [TextButton(onPressed: () => _showExport(false), child: const Text('SRT')), TextButton(onPressed: () => _showExport(true), child: const Text('VTT'))]), body: SafeArea(child: ListView.builder(padding: const EdgeInsets.all(18), itemCount: widget.cues.length + 1, itemBuilder: (context, index) {
-      if (index == 0) return _TimelineBanner(report: report, cueCount: widget.cues.length);
-      final cueIndex = index - 1; final cue = widget.cues[cueIndex];
+    return Scaffold(appBar: AppBar(title: Text(widget.filename), actions: [TextButton(onPressed: () => _showExport(false), child: const Text('SRT')), TextButton(onPressed: () => _showExport(true), child: const Text('VTT'))]), body: SafeArea(child: ListView.builder(padding: const EdgeInsets.all(18), itemCount: timedCues.length + 1, itemBuilder: (context, index) {
+      if (index == 0) return Column(children: [ _TimelineBanner(report: report, cueCount: timedCues.length), Row(children: [Expanded(child: TextField(controller: offsetMs, keyboardType: const TextInputType.numberWithOptions(signed: true), decoration: const InputDecoration(labelText: 'Zhvendos kohën (ms)', hintText: '1500 ose -500', border: OutlineInputBorder()))), const SizedBox(width: 8), FilledButton(onPressed: _shift, child: const Text('Zbato'))]), const SizedBox(height: 16)]);
+      final cueIndex = index - 1; final cue = timedCues[cueIndex];
       String stamp(Duration value) => value.toString().split('.').first;
       final overlap = report.overlapIndexes.contains(cueIndex); final empty = report.emptyIndexes.contains(cueIndex);
       return Card(color: overlap || empty ? const Color(0xFF3A241D) : null, child: Padding(padding: const EdgeInsets.all(16), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [

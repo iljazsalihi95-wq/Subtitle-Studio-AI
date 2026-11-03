@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:subtitle_studio_ai/features/subtitles/srt_editor.dart';
 import 'package:subtitle_studio_ai/main.dart';
 
 void main() {
@@ -9,8 +10,15 @@ void main() {
     await tester.tap(find.text('Studio e titrave'));
     await tester.pumpAndSettle();
     expect(find.textContaining('Ky modul është në zhvillim'), findsOneWidget);
-    await tester.tap(find.text('Mbyll'));
+  });
+
+  testWidgets('Subtitle editor shows timeline overlap warning', (tester) async {
+    await tester.pumpWidget(const MaterialApp(home: SubtitlePreviewPage(filename: 'test.srt', cues: [
+      SubtitleCue(start: Duration(seconds: 1), end: Duration(seconds: 4), original: 'Një'),
+      SubtitleCue(start: Duration(seconds: 3), end: Duration(seconds: 5), original: 'Dy'),
+    ])));
     await tester.pumpAndSettle();
-    expect(find.textContaining('Ky modul është në zhvillim'), findsNothing);
+    expect(find.textContaining('1 mbivendosje'), findsOneWidget);
+    expect(find.text('Mbivendosje kohe'), findsOneWidget);
   });
 }

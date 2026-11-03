@@ -32,12 +32,17 @@ class _HomePageState extends State<HomePage> {
   int tab = 0;
 
   Future<void> _pick(List<String> extensions) async {
-    final files = await FilePicker.pickFiles(type: FileType.custom, allowedExtensions: extensions);
-    if (!mounted || files.isEmpty) return;
-    final file = files.single;
+    final result = await FilePicker.platform.pickFiles(type: FileType.custom, allowedExtensions: extensions, withData: true);
+    if (!mounted || result == null || result.files.isEmpty) return;
+    final file = result.files.single;
     setState(() => selectedFile = file.name);
     if (['srt', 'vtt'].contains(file.extension?.toLowerCase())) {
-      final cues = parseSubtitles(utf8.decode(await file.readAsBytes(), allowMalformed: true));
+      final bytes = file.bytes;
+      if (bytes == null) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Skedari nuk mund të lexohet.')));
+        return;
+      }
+      final cues = parseSubtitles(utf8.decode(bytes, allowMalformed: true));
       if (mounted) await Navigator.push(context, MaterialPageRoute<void>(builder: (_) => SubtitlePreviewPage(filename: file.name, cues: cues)));
     } else if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Videoja u zgjodh: ${file.name}. Transkriptimi AI lidhet vetëm përmes backend-it privat.')));

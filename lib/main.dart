@@ -140,10 +140,47 @@ class _SubtitlePreviewPageState extends State<SubtitlePreviewPage> {
   @override void initState() { super.initState(); timedCues = List.of(widget.cues); translations = timedCues.map((cue) => TextEditingController(text: cue.translation)).toList(); }
   @override void dispose() { for (final controller in translations) { controller.dispose(); } offsetMs.dispose(); super.dispose(); }
   List<SubtitleCue> get editedCues => [for (var i = 0; i < timedCues.length; i++) timedCues[i].translated(translations[i].text)];
-  void _showExport(bool vtt) { final output = vtt ? exportVtt(editedCues) : exportSrt(editedCues); showDialog<void>(context: context, builder: (context) => AlertDialog(title: Text(vtt ? 'Eksport VTT' : 'Eksport SRT'), content: SizedBox(width: double.maxFinite, height: 320, child: SingleChildScrollView(child: SelectableText(output))), actions: [TextButton.icon(onPressed: () async {
-    try {
-      final ext = vtt ? 'vtt' : 'srt';
-      final stem = widget.filename.replaceAll(RegExp(r'\\.[^.]+ if (!context.mounted) return; Navigator.pop(context); ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Titrat u kopjuan.'))); }, icon: const Icon(Icons.copy), label: const Text('Kopjo')), TextButton(onPressed: () => Navigator.pop(context), child: const Text('Mbyll'))])); }
+  void _showExport(bool vtt) {
+    final output = vtt ? exportVtt(editedCues) : exportSrt(editedCues);
+    showDialog<void>(context: context, builder: (dialogContext) => AlertDialog(
+      title: Text(vtt ? 'Eksport VTT' : 'Eksport SRT'),
+      content: SizedBox(width: double.maxFinite, height: 320,
+        child: SingleChildScrollView(child: SelectableText(output))),
+      actions: [
+        TextButton.icon(onPressed: () async {
+          try {
+            final ext = vtt ? 'vtt' : 'srt';
+            final result = await FilePicker.saveFile(
+              dialogTitle: 'Ruaj titrat',
+              fileName: 'subtitles_edited.$ext',
+              type: FileType.custom,
+              allowedExtensions: [ext],
+              bytes: Uint8List.fromList(utf8.encode(output)),
+            );
+            if (!mounted || !dialogContext.mounted) return;
+            if (result != null) {
+              Navigator.pop(dialogContext);
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Skedari i titrave u ruajt.')));
+            }
+          } catch (_) {
+            if (!mounted) return;
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Ruajtja dështoi. Provo Kopjo.')));
+          }
+        }, icon: const Icon(Icons.save_alt), label: const Text('Ruaj')),
+        TextButton.icon(onPressed: () async {
+          await Clipboard.setData(ClipboardData(text: output));
+          if (!dialogContext.mounted || !mounted) return;
+          Navigator.pop(dialogContext);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Titrat u kopjuan.')));
+        }, icon: const Icon(Icons.copy), label: const Text('Kopjo')),
+        TextButton(onPressed: () => Navigator.pop(dialogContext),
+          child: const Text('Mbyll')),
+      ],
+    ));
+  }
   @override
   Widget build(BuildContext context) {
     final report = validateTimeline(editedCues);

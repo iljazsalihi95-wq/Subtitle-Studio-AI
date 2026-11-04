@@ -148,7 +148,8 @@ class _SubtitlePreviewPageState extends State<SubtitlePreviewPage> {
     try { setState(() => timedCues = shiftSubtitleTiming(timedCues, Duration(milliseconds: value))); }
     on FormatException { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Koha nuk mund të jetë negative.'))); }
   }
-  @override void initState() { super.initState(); timedCues = List.of(widget.cues); translations = timedCues.map((cue) => TextEditingController(text: cue.translation)).toList(); }
+  @override void initState() { super.initState(); timedCues = List.of(widget.cues); translations = timedCues.map((cue) => TextEditingController(text: cue.translation)).toList(); for (final controller in translations) { controller.addListener(_onTranslationChanged); } }
+  void _onTranslationChanged() { if (mounted) setState(() {}); }
   @override void dispose() { for (final controller in translations) { controller.dispose(); } offsetMs.dispose(); cueSearch.dispose(); super.dispose(); }
   List<SubtitleCue> get editedCues => [for (var i = 0; i < timedCues.length; i++) timedCues[i].translated(translations[i].text)];
   void _showExport(bool vtt) {

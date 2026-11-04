@@ -37,7 +37,6 @@ class _HomePageState extends State<HomePage> {
       final files = await FilePicker.pickFiles(type: FileType.custom, allowedExtensions: ['mp4', 'mkv', 'mov', 'webm', 'srt', 'vtt']);
       if (!mounted || files.isEmpty) return;
       final file = files.single;
-      setState(() => selectedFile = file.name);
       if (['srt', 'vtt'].contains(file.extension?.toLowerCase())) {
         final bytes = await file.readAsBytes();
         final cues = parseSubtitles(utf8.decode(bytes, allowMalformed: true));
@@ -46,10 +45,12 @@ class _HomePageState extends State<HomePage> {
           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Nuk u gjet asnjë titër i vlefshëm SRT/VTT. Kontrollo formatin e skedarit.')));
           return;
         }
+        setState(() => selectedFile = file.name);
         await Navigator.push(context, MaterialPageRoute<void>(builder: (_) => SubtitlePreviewPage(filename: file.name, cues: cues)));
         return;
       }
       if (!mounted) return;
+      setState(() => selectedFile = file.name);
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Videoja u zgjodh: $selectedFile. Transkriptimi AI lidhet përmes backend-it privat.')));
     } on FormatException catch (error) {
       if (!mounted) return;

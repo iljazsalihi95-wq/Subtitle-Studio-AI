@@ -22,19 +22,10 @@ jobs:
           s = p.read_text().replace('compileSdk = flutter.compileSdkVersion', 'compileSdk = 36')
           p.write_text(s)
           PY
-      - name: Set distinct application ID for installable Android app
+      - name: Check Android package identity for update compatibility
         run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          p = Path('android/app/build.gradle.kts')
-          s = p.read_text()
-          import re
-          package_id = 'com.lazisalihi.subtitle_studio_ai'
-          s, count = re.subn(r'applicationId\s*=\s*"[^"]+"', f'applicationId = "{package_id}"', s, count=1)
-          assert count == 1, 'Flutter Android applicationId not found'
-          p.write_text(s)
-          print('Android applicationId:', package_id)
-          PY
+          grep -n 'applicationId' android/app/build.gradle.kts
+          echo '::notice::Existing install updates require matching package ID and signing certificate.'
       - name: Generate original launcher icons
         run: |
           python3 -m pip install --user Pillow

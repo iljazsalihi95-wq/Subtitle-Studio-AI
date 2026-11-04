@@ -101,9 +101,10 @@ List<SubtitleCue> parseSubtitles(String source) {
   final cues = <SubtitleCue>[];
   for (final block in blocks) {
     final lines = block.trim().split('\n');
-    if (lines.isEmpty || lines.first.trim() == 'WEBVTT' || lines.first.startsWith('NOTE')) continue;
+    if (lines.isEmpty || lines.first.trim() == 'WEBVTT' || RegExp(r'^(NOTE|STYLE|REGION)(\s|$)').hasMatch(lines.first.trim())) continue;
     final timeIndex = lines.indexWhere((line) => line.contains('-->'));
     if (timeIndex < 0 || timeIndex >= lines.length - 1) continue;
+    // Ignore metadata and comments before the timing line, but retain multiline cue text.
     final times = lines[timeIndex].split('-->');
     if (times.length != 2) continue;
     final endToken = times[1].trim().split(RegExp(r'\s+')).first;

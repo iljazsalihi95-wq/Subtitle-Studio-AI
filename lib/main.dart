@@ -184,6 +184,19 @@ class _SubtitlePreviewPageState extends State<SubtitlePreviewPage> {
     }
   }
   bool onlyProblems = false;
+  void _deleteCue(int index) {
+    if (timedCues.length <= 1) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Projekti duhet të ketë të paktën një titër.')));
+      return;
+    }
+    final removed = translations[index];
+    removed.removeListener(_onTranslationChanged);
+    setState(() {
+      timedCues.removeAt(index);
+      translations.removeAt(index);
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) => removed.dispose());
+  }
   void _addCue() {
     final playbackPosition = videoController?.value.position;
     final previousEnd = timedCues.isEmpty ? Duration.zero : timedCues.last.end;
@@ -319,7 +332,7 @@ class _SubtitlePreviewPageState extends State<SubtitlePreviewPage> {
       String stamp(Duration value) => value.toString().split('.').first;
       final overlap = report.overlapIndexes.contains(cueIndex); final empty = report.emptyIndexes.contains(cueIndex);
       return Card(color: overlap || empty ? const Color(0xFF3A241D) : null, child: Padding(padding: const EdgeInsets.all(16), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [Expanded(child: Text('${cueIndex + 1}  •  ${stamp(cue.start)} → ${stamp(cue.end)}', style: const TextStyle(color: Color(0xFFE8C170)))), IconButton(tooltip: 'Shko te ky titër në video', onPressed: videoController == null ? null : () async { await videoController!.seekTo(cue.start); await videoController!.play(); if (mounted) setState(() {}); }, icon: const Icon(Icons.play_arrow))]),
+        Row(children: [Expanded(child: Text('${cueIndex + 1}  •  ${stamp(cue.start)} → ${stamp(cue.end)}', style: const TextStyle(color: Color(0xFFE8C170)))), IconButton(tooltip: 'Shko te ky titër në video', onPressed: videoController == null ? null : () async { await videoController!.seekTo(cue.start); await videoController!.play(); if (mounted) setState(() {}); }, icon: const Icon(Icons.play_arrow)), IconButton(tooltip: 'Fshi këtë titër', onPressed: () => _deleteCue(cueIndex), icon: const Icon(Icons.delete_outline))]),
         if (overlap || empty) Padding(padding: const EdgeInsets.only(top: 6), child: Text([if (overlap) 'Mbivendosje kohe', if (empty) 'Cue bosh'].join(' • '), style: const TextStyle(color: Color(0xFFFFB49D), fontWeight: FontWeight.w700))),
         if (videoController != null) Padding(
           padding: const EdgeInsets.only(top: 6),

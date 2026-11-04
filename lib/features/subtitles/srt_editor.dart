@@ -94,8 +94,13 @@ List<SubtitleCue> parseSubtitles(String source) {
   final isVtt = normalized.startsWith('WEBVTT');
   // The WebVTT header ends at its first blank line. Never consume cue blocks.
   final headerEnd = normalized.indexOf(RegExp(r'\n\s*\n'));
+  // Some exported VTT files place the first cue immediately after WEBVTT.
+  // Keep those cues instead of silently importing an empty project.
+  final firstLineEnd = normalized.indexOf('\n');
   final body = isVtt
-      ? (headerEnd < 0 ? '' : normalized.substring(headerEnd).trimLeft())
+      ? (headerEnd >= 0
+          ? normalized.substring(headerEnd).trimLeft()
+          : (firstLineEnd < 0 ? '' : normalized.substring(firstLineEnd + 1).trimLeft()))
       : normalized;
   final blocks = body.split(RegExp(r'\n\s*\n'));
   final cues = <SubtitleCue>[];

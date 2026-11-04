@@ -34,6 +34,7 @@ void main() {
     await tester.pump();
 
     expect(find.textContaining('1 mbivendosje'), findsOneWidget);
+    await tester.scrollUntilVisible(find.text('Mbivendosje kohe'), 250, scrollable: find.byType(Scrollable).first);
     expect(find.text('Mbivendosje kohe'), findsWidgets);
   });
 }

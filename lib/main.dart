@@ -164,9 +164,12 @@ class _SubtitlePreviewPageState extends State<SubtitlePreviewPage> {
         TextButton.icon(onPressed: () async {
           try {
             final ext = vtt ? 'vtt' : 'srt';
+            final originalName = widget.filename;
+            final dot = originalName.lastIndexOf('.');
+            final baseName = dot > 0 ? originalName.substring(0, dot) : originalName;
             final result = await FilePicker.saveFile(
               dialogTitle: 'Ruaj titrat',
-              fileName: '${widget.filename.split('.').first}_edited.$ext',
+              fileName: '${baseName}_edited.$ext',
               bytes: Uint8List.fromList(utf8.encode(output)),
             );
             if (!mounted || !dialogContext.mounted) return;

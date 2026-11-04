@@ -166,7 +166,64 @@ class _SubtitlePreviewPageState extends State<SubtitlePreviewPage> {
             final ext = vtt ? 'vtt' : 'srt';
             final result = await FilePicker.saveFile(
               dialogTitle: 'Ruaj titrat',
-              fileName: 'subtitles_edited.$ext',
+              fileName: '${widget.filename.replaceFirst(RegExp(r'\\.(srt|vtt)\
+              bytes: Uint8List.fromList(utf8.encode(output)),
+            );
+            if (!mounted || !dialogContext.mounted) return;
+            if (result != null) {
+              Navigator.pop(dialogContext);
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Skedari i titrave u ruajt.')));
+            }
+          } catch (_) {
+            if (!mounted) return;
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Ruajtja dështoi. Provo Kopjo.')));
+          }
+        }, icon: const Icon(Icons.save_alt), label: const Text('Ruaj')),
+        TextButton.icon(onPressed: () async {
+          await Clipboard.setData(ClipboardData(text: output));
+          if (!dialogContext.mounted || !mounted) return;
+          Navigator.pop(dialogContext);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Titrat u kopjuan.')));
+        }, icon: const Icon(Icons.copy), label: const Text('Kopjo')),
+        TextButton(onPressed: () => Navigator.pop(dialogContext),
+          child: const Text('Mbyll')),
+      ],
+    ));
+  }
+  @override
+  Widget build(BuildContext context) {
+    final report = validateTimeline(editedCues);
+    final visible = <int>[for (var i = 0; i < timedCues.length; i++) if ((!onlyProblems || report.overlapIndexes.contains(i) || report.emptyIndexes.contains(i)) && (searchQuery.isEmpty || timedCues[i].original.toLowerCase().contains(searchQuery) || translations[i].text.toLowerCase().contains(searchQuery))) i];
+    return Scaffold(appBar: AppBar(title: Text(widget.filename), actions: [TextButton(onPressed: () => _showExport(false), child: const Text('SRT')), TextButton(onPressed: () => _showExport(true), child: const Text('VTT'))]), body: SafeArea(child: ListView.builder(padding: const EdgeInsets.all(18), itemCount: visible.length + 1, itemBuilder: (context, index) {
+      if (index == 0) return Column(children: [ _TimelineBanner(report: report, cueCount: timedCues.length), Row(children: [Expanded(child: TextField(controller: offsetMs, keyboardType: const TextInputType.numberWithOptions(signed: true), decoration: const InputDecoration(labelText: 'Zhvendos kohën (ms)', hintText: '1500 ose -500', border: OutlineInputBorder()))), const SizedBox(width: 8), FilledButton(onPressed: _shift, child: const Text('Zbato'))]), const SizedBox(height: 14), TextField(controller: cueSearch, onChanged: (value) => setState(() => searchQuery = value.trim().toLowerCase()), decoration: const InputDecoration(prefixIcon: Icon(Icons.search), labelText: 'Kërko në titra', border: OutlineInputBorder())), SwitchListTile(title: const Text('Shfaq vetëm problemet e timeline-it'), value: onlyProblems, onChanged: (value) => setState(() => onlyProblems = value)), Text('${visible.length} nga ${timedCues.length} titra', style: const TextStyle(color: Color(0xFF9EABBC))), const SizedBox(height: 16)]);
+      final cueIndex = visible[index - 1]; final cue = timedCues[cueIndex];
+      String stamp(Duration value) => value.toString().split('.').first;
+      final overlap = report.overlapIndexes.contains(cueIndex); final empty = report.emptyIndexes.contains(cueIndex);
+      return Card(color: overlap || empty ? const Color(0xFF3A241D) : null, child: Padding(padding: const EdgeInsets.all(16), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text('${cueIndex + 1}  •  ${stamp(cue.start)} → ${stamp(cue.end)}', style: const TextStyle(color: Color(0xFFE8C170))),
+        if (overlap || empty) Padding(padding: const EdgeInsets.only(top: 6), child: Text([if (overlap) 'Mbivendosje kohe', if (empty) 'Cue bosh'].join(' • '), style: const TextStyle(color: Color(0xFFFFB49D), fontWeight: FontWeight.w700))),
+        const SizedBox(height: 8), SelectableText(cue.original, style: const TextStyle(fontSize: 17)), const SizedBox(height: 8),
+        Align(alignment: Alignment.centerRight, child: TextButton.icon(
+          onPressed: () { translations[cueIndex].text = cue.original; setState(() {}); },
+          icon: const Icon(Icons.content_copy_outlined, size: 17),
+          label: const Text('Kopjo origjinalin në redaktim'),
+        )),
+        const SizedBox(height: 8),
+        TextField(controller: translations[cueIndex], maxLines: null, decoration: const InputDecoration(labelText: 'Teksti i redaktuar / përkthimi shqip', border: OutlineInputBorder())),
+      ])));
+    })));
+  }
+}
+
+class _TimelineBanner extends StatelessWidget {
+  const _TimelineBanner({required this.report, required this.cueCount});
+  final SubtitleTimelineReport report; final int cueCount;
+  @override Widget build(BuildContext context) => Container(margin: const EdgeInsets.only(bottom: 14), padding: const EdgeInsets.all(14), decoration: BoxDecoration(color: report.isClean ? const Color(0xFF102B27) : const Color(0xFF38271E), borderRadius: BorderRadius.circular(16)), child: Row(children: [Icon(report.isClean ? Icons.verified_outlined : Icons.warning_amber_rounded, color: const Color(0xFFE8C170)), const SizedBox(width: 10), Expanded(child: Text(report.isClean ? 'Timeline i pastër • $cueCount cue' : '${report.overlapIndexes.length} mbivendosje • ${report.emptyIndexes.length} cue bosh', style: const TextStyle(fontWeight: FontWeight.w700)))]));
+}
+, caseSensitive: false), '')}_edited.$ext',
               bytes: Uint8List.fromList(utf8.encode(output)),
             );
             if (!mounted || !dialogContext.mounted) return;

@@ -41,7 +41,7 @@ SubtitleTimelineReport validateTimeline(List<SubtitleCue> cues) {
   for (var i = 0; i < cues.length; i++) {
     final cue = cues[i];
     if (cue.original.trim().isEmpty && cue.translation.trim().isEmpty) empty.add(i);
-    if (cue.start.isNegative || cue.end <= cue.start) empty.add(i);
+    if ((cue.start.isNegative || cue.end <= cue.start) && !empty.contains(i)) empty.add(i);
     if (i > 0 && cue.start < cues[i - 1].end) overlaps.add(i);
   }
   return SubtitleTimelineReport(overlapIndexes: overlaps, emptyIndexes: empty);

@@ -26,6 +26,12 @@ jobs:
         run: |
           python3 -m pip install --user Pillow
           python3 scripts/generate_launcher_icons.py
+      - name: Prevent default Flutter adaptive icon overriding branded icon
+        run: |
+          # Flutter's generated adaptive launcher can take precedence on Android 8+.
+          # Use our custom mipmap PNGs consistently, including Samsung One UI.
+          rm -f android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml
+          test ! -e android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml
       - name: Verify custom launcher icons
         run: |
           python3 - <<'PY'

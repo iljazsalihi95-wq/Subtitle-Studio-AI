@@ -166,7 +166,7 @@ class _SubtitlePreviewPageState extends State<SubtitlePreviewPage> {
             final ext = vtt ? 'vtt' : 'srt';
             final result = await FilePicker.saveFile(
               dialogTitle: 'Ruaj titrat',
-              fileName: '${widget.filename.replaceFirst(RegExp(r'\\.(srt|vtt)\
+              fileName: '${widget.filename.split('.').first}_edited.$ext',
               bytes: Uint8List.fromList(utf8.encode(output)),
             );
             if (!mounted || !dialogContext.mounted) return;

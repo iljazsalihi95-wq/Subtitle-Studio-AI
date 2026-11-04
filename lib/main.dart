@@ -255,7 +255,18 @@ class _SubtitlePreviewPageState extends State<SubtitlePreviewPage> {
     return Scaffold(appBar: AppBar(title: Text(widget.filename), actions: [TextButton(onPressed: () => _showExport(false), child: const Text('SRT')), TextButton(onPressed: () => _showExport(true), child: const Text('VTT'))]), body: SafeArea(child: ListView.builder(padding: const EdgeInsets.all(18), itemCount: visible.length + 1, itemBuilder: (context, index) {
       if (index == 0) { return Column(children: [
         if (videoController != null && videoController!.value.isInitialized) ...[
-          AspectRatio(aspectRatio: videoController!.value.aspectRatio, child: VideoPlayer(videoController!)),
+          AspectRatio(aspectRatio: videoController!.value.aspectRatio, child: Stack(fit: StackFit.expand, children: [
+            VideoPlayer(videoController!),
+            ValueListenableBuilder<VideoPlayerValue>(valueListenable: videoController!, builder: (context, value, _) {
+              final current = value.position;
+              final matching = editedCues.where((cue) => cue.start <= current && cue.end > current).toList();
+              if (matching.isEmpty) return const SizedBox.shrink();
+              final cue = matching.first;
+              final text = cue.translation.trim().isNotEmpty ? cue.translation : cue.original;
+              if (text.trim().isEmpty) return const SizedBox.shrink();
+              return Align(alignment: Alignment.bottomCenter, child: Padding(padding: const EdgeInsets.all(12), child: DecoratedBox(decoration: BoxDecoration(color: Colors.black87, borderRadius: BorderRadius.circular(8)), child: Padding(padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7), child: Text(text, textAlign: TextAlign.center, style: const TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w600))))));
+            }),
+          ])),
           VideoProgressIndicator(videoController!, allowScrubbing: true, padding: const EdgeInsets.symmetric(vertical: 12)),
           Row(children: [IconButton(onPressed: () { final v = videoController!; v.value.isPlaying ? v.pause() : v.play(); setState(() {}); }, icon: Icon(videoController!.value.isPlaying ? Icons.pause_circle : Icons.play_circle)), Text('Video e lidhur me titrat')]),
         ] else if (videoLoading) const LinearProgressIndicator(),

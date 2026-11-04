@@ -10,7 +10,7 @@ void main() {
 
     expect(find.text('SUBTITLE STUDIO AI'), findsOneWidget);
     expect(find.text('Projekt i ri'), findsOneWidget);
-    expect(find.text('Studio e titrave'), findsOneWidget);
+    expect(find.text('Studio me video'), findsOneWidget);
   });
 
   testWidgets('Subtitle editor shows timeline overlap warning', (tester) async {

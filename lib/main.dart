@@ -61,6 +61,13 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
+  void _newSubtitleProject() {
+    Navigator.push(context, MaterialPageRoute<void>(builder: (_) => SubtitlePreviewPage(
+      filename: 'projekt_i_ri.srt',
+      cues: [SubtitleCue(start: Duration.zero, end: const Duration(seconds: 3), original: 'Shkruaj titrin këtu', translation: '')],
+    )));
+  }
+
   Future<void> _openSubtitleStudio() async {
     try {
       final files = await FilePicker.pickFiles(type: FileType.custom, allowedExtensions: ['srt', 'vtt']);
@@ -92,12 +99,13 @@ class _HomePageState extends State<HomePage> {
       const SizedBox(height: 8), const Text('Importo • kontrollo timeline-in • përkthe • eksporto', style: TextStyle(color: Color(0xFFB7C2D0), height: 1.45)),
       const SizedBox(height: 24),
       _Action(icon: Icons.video_file_outlined, title: 'Projekt i ri', subtitle: selectedFile ?? 'Video • SRT • VTT', primary: true, onTap: _import),
-      _Action(icon: Icons.subtitles_outlined, title: 'Studio e titrave', subtitle: 'Hap SRT/VTT • timeline • editor', onTap: _openSubtitleStudio),
-      const _Action(icon: Icons.translate, title: 'Përkthimi AI', subtitle: 'Shqip • ruaj timecode-et'),
+      _Action(icon: Icons.subtitles_outlined, title: 'Studio e titrave', subtitle: 'Hap editorin menjëherë • krijo titra • SRT/VTT', onTap: _newSubtitleProject),
+      _Action(icon: Icons.file_open_outlined, title: 'Importo titra ekzistues', subtitle: 'Zgjidh një skedar SRT ose VTT', onTap: _openSubtitleStudio),
+      _Action(icon: Icons.translate, title: 'Përkthimi AI', subtitle: 'Shqip • kërkon lidhjen e backend-it', onTap: () => _showModuleInfo('Përkthimi AI', 'Lidhja me backend-in AI nuk është konfiguruar ende në këtë APK. Redaktimi manual dhe eksporti SRT/VTT funksionojnë pa internet.')),
       _Action(icon: Icons.ios_share_outlined, title: 'Eksporto', subtitle: 'Hap titrat për eksport SRT • VTT', onTap: _openSubtitleStudio),
       const SizedBox(height: 18), const _Status(),
     ])),
-    bottomNavigationBar: NavigationBar(selectedIndex: 0, onDestinationSelected: (index) { if (index == 1) { _openSubtitleStudio(); } else if (index == 2) { _showModuleInfo('Përkthimi AI', 'Përkthimi kërkon lidhjen me backend-in privat.'); } else if (index == 3) { _showModuleInfo('Projektet', 'Projektet ruhen lokalisht pasi të aktivizohet ruajtja e tyre.'); } }, destinations: const [
+    bottomNavigationBar: NavigationBar(selectedIndex: 0, onDestinationSelected: (index) { if (index == 1) { _newSubtitleProject(); } else if (index == 2) { _showModuleInfo('Përkthimi AI', 'Përkthimi kërkon lidhjen me backend-in privat.'); } else if (index == 3) { _showModuleInfo('Projektet', 'Projektet ruhen lokalisht pasi të aktivizohet ruajtja e tyre.'); } }, destinations: const [
       NavigationDestination(icon: Icon(Icons.home_outlined), selectedIcon: Icon(Icons.home), label: 'Ballina'),
       NavigationDestination(icon: Icon(Icons.subtitles_outlined), label: 'Studio'),
       NavigationDestination(icon: Icon(Icons.auto_awesome_outlined), label: 'AI'),

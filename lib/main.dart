@@ -189,8 +189,14 @@ class _SubtitlePreviewPageState extends State<SubtitlePreviewPage> {
       return Card(color: overlap || empty ? const Color(0xFF3A241D) : null, child: Padding(padding: const EdgeInsets.all(16), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Text('${cueIndex + 1}  •  ${stamp(cue.start)} → ${stamp(cue.end)}', style: const TextStyle(color: Color(0xFFE8C170))),
         if (overlap || empty) Padding(padding: const EdgeInsets.only(top: 6), child: Text([if (overlap) 'Mbivendosje kohe', if (empty) 'Cue bosh'].join(' • '), style: const TextStyle(color: Color(0xFFFFB49D), fontWeight: FontWeight.w700))),
-        const SizedBox(height: 8), SelectableText(cue.original, style: const TextStyle(fontSize: 17)), const SizedBox(height: 12),
-        TextField(controller: translations[cueIndex], onChanged: (_) => setState(() {}), maxLines: null, decoration: const InputDecoration(labelText: 'Përkthimi shqip', border: OutlineInputBorder())),
+        const SizedBox(height: 8), SelectableText(cue.original, style: const TextStyle(fontSize: 17)), const SizedBox(height: 8),
+        Align(alignment: Alignment.centerRight, child: TextButton.icon(
+          onPressed: () { translations[cueIndex].text = cue.original; setState(() {}); },
+          icon: const Icon(Icons.content_copy_outlined, size: 17),
+          label: const Text('Kopjo origjinalin në redaktim'),
+        )),
+        const SizedBox(height: 8),
+        TextField(controller: translations[cueIndex], onChanged: (_) => setState(() {}), maxLines: null, decoration: const InputDecoration(labelText: 'Teksti i redaktuar / përkthimi shqip', border: OutlineInputBorder())),
       ])));
     })));
   }

@@ -40,7 +40,7 @@ class _HomePageState extends State<HomePage> {
       final files = await FilePicker.pickFiles(type: FileType.custom, allowedExtensions: ['mp4', 'mkv', 'mov', 'webm', 'srt', 'vtt']);
       if (!mounted || files.isEmpty) return;
       final file = files.single;
-      if (file.size > 20 * 1024 * 1024 && ['srt', 'vtt'].contains(file.extension?.toLowerCase())) {
+      if ((file.path != null && File(file.path!).lengthSync() > 20 * 1024 * 1024) && ['srt', 'vtt'].contains(file.extension?.toLowerCase())) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Skedari i titrave është mbi 20 MB. Zgjidh një SRT/VTT më të vogël.')));
         return;
       }
@@ -85,7 +85,7 @@ class _HomePageState extends State<HomePage> {
       final files = await FilePicker.pickFiles(type: FileType.custom, allowedExtensions: ['srt', 'vtt']);
       if (!mounted || files.isEmpty) return;
       final file = files.single;
-      if (file.size > 20 * 1024 * 1024) {
+      if ((file.path != null && File(file.path!).lengthSync() > 20 * 1024 * 1024)) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Skedari i titrave është mbi 20 MB.')));
         return;
       }

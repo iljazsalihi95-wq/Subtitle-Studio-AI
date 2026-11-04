@@ -82,7 +82,7 @@ class _HomePageState extends State<HomePage> {
       _Action(icon: Icons.video_file_outlined, title: 'Projekt i ri', subtitle: selectedFile ?? 'Video • SRT • VTT', primary: true, onTap: _import),
       _Action(icon: Icons.subtitles_outlined, title: 'Studio e titrave', subtitle: 'Hap SRT/VTT • timeline • editor', onTap: _openSubtitleStudio),
       const _Action(icon: Icons.translate, title: 'Përkthimi AI', subtitle: 'Shqip • ruaj timecode-et'),
-      const _Action(icon: Icons.ios_share_outlined, title: 'Eksporto', subtitle: 'SRT • VTT'),
+      _Action(icon: Icons.ios_share_outlined, title: 'Eksporto', subtitle: 'Hap titrat për eksport SRT • VTT', onTap: _openSubtitleStudio),
       const SizedBox(height: 18), const _Status(),
     ])),
     bottomNavigationBar: NavigationBar(selectedIndex: 0, onDestinationSelected: (index) { if (index == 1) { _openSubtitleStudio(); } else if (index == 2) { _showModuleInfo('Përkthimi AI', 'Përkthimi kërkon lidhjen me backend-in privat.'); } else if (index == 3) { _showModuleInfo('Projektet', 'Projektet ruhen lokalisht pasi të aktivizohet ruajtja e tyre.'); } }, destinations: const [

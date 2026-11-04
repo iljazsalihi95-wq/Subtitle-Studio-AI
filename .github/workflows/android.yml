@@ -60,8 +60,15 @@ jobs:
           set -e
           APK=build/app/outputs/flutter-apk/app-arm64-v8a-debug.apk
           test -s "$APK"
-          unzip -Z1 "$APK" | grep -E 'res/.*png' | head -5
-          echo "Compiled Android PNG resources present"
+          # Verify the launcher resource itself, not just unrelated PNG assets.
+          AAPT=$(find "$ANDROID_HOME/build-tools" -maxdepth 2 -type f -name aapt | sort -V | tail -1)
+          test -x "$AAPT"
+          "$AAPT" dump resources "$APK" > /tmp/compiled-apk-resources.txt
+          grep -q 'mipmap/ic_launcher' /tmp/compiled-apk-resources.txt
+          "$AAPT" dump badging "$APK" > /tmp/compiled-apk-badging.txt
+          grep -q "^application-icon-" /tmp/compiled-apk-badging.txt
+          grep -q "^package: name=" /tmp/compiled-apk-badging.txt
+          echo "Compiled APK launcher resource and package metadata verified"
       - name: Verify APKs and produce SHA-256 checksums
         run: |
           set -e

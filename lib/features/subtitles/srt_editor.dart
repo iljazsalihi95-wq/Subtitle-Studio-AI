@@ -73,11 +73,18 @@ String exportVtt(List<SubtitleCue> cues, {bool translated = true}) {
 }
 
 Duration _parseTimestamp(String value) {
-  final match = RegExp(r'^(\d{2}):(\d{2}):(\d{2})[,.](\d{3})$').firstMatch(value.trim());
+  final token = value.trim();
+  // WebVTT allows MM:SS.mmm; SRT and WebVTT also allow HH:MM:SS.mmm.
+  final match = RegExp(r'^(?:(\\d{2,}):)?(\\d{2}):(\\d{2})[,.](\\d{3})$').firstMatch(token);
   if (match == null) throw FormatException('Invalid subtitle timestamp: $value');
-  final parts = List.generate(4, (index) => int.parse(match.group(index + 1)!));
-  if (parts[1] >= 60 || parts[2] >= 60) throw FormatException('Invalid subtitle timestamp: $value');
-  return Duration(hours: parts[0], minutes: parts[1], seconds: parts[2], milliseconds: parts[3]);
+  final hours = int.tryParse(match.group(1) ?? '0')!;
+  final minutes = int.parse(match.group(2)!);
+  final seconds = int.parse(match.group(3)!);
+  final milliseconds = int.parse(match.group(4)!);
+  if (minutes >= 60 || seconds >= 60) {
+    throw FormatException('Invalid subtitle timestamp: $value');
+  }
+  return Duration(hours: hours, minutes: minutes, seconds: seconds, milliseconds: milliseconds);
 }
 
 /// Reads local SRT or WebVTT cues without changing their timing.

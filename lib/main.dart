@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -153,8 +152,6 @@ class _SubtitlePreviewPageState extends State<SubtitlePreviewPage> {
             final result = await FilePicker.saveFile(
               dialogTitle: 'Ruaj titrat',
               fileName: 'subtitles_edited.$ext',
-              type: FileType.custom,
-              allowedExtensions: [ext],
               bytes: Uint8List.fromList(utf8.encode(output)),
             );
             if (!mounted || !dialogContext.mounted) return;

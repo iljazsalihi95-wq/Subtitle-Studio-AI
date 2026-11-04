@@ -185,11 +185,19 @@ class _SubtitlePreviewPageState extends State<SubtitlePreviewPage> {
   }
   bool onlyProblems = false;
   void _addCue() {
-    final start = timedCues.isEmpty ? Duration.zero : timedCues.last.end;
+    final playbackPosition = videoController?.value.position;
+    final previousEnd = timedCues.isEmpty ? Duration.zero : timedCues.last.end;
+    final start = playbackPosition != null && playbackPosition > previousEnd ? playbackPosition : previousEnd;
+    final duration = videoController?.value.duration;
+    if (duration != null && start >= duration) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Shko më herët në video për të shtuar titër.')));
+      return;
+    }
+    final end = duration != null && start + const Duration(seconds: 3) > duration ? duration : start + const Duration(seconds: 3);
     final controller = TextEditingController();
     controller.addListener(_onTranslationChanged);
     setState(() {
-      timedCues.add(SubtitleCue(start: start, end: start + const Duration(seconds: 3), original: '', translation: ''));
+      timedCues.add(SubtitleCue(start: start, end: end, original: '', translation: ''));
       translations.add(controller);
       onlyProblems = false;
       searchQuery = '';

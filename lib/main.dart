@@ -196,6 +196,22 @@ class _SubtitlePreviewPageState extends State<SubtitlePreviewPage> {
       cueSearch.clear();
     });
   }
+  void _markCueBoundary(int index, {required bool start}) {
+    final player = videoController;
+    if (player == null || !player.value.isInitialized) return;
+    final position = player.value.position;
+    final cue = timedCues[index];
+    final newStart = start ? position : cue.start;
+    final newEnd = start ? cue.end : position;
+    if (newEnd <= newStart) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Fundi duhet të jetë pas fillimit të titrit.')));
+      return;
+    }
+    setState(() => timedCues[index] = SubtitleCue(
+      start: newStart, end: newEnd, original: cue.original,
+      translation: translations[index].text,
+    ));
+  }
   void _shift() {
     final value = int.tryParse(offsetMs.text.trim());
     if (value == null) { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Shkruaj milisekonda, p.sh. 1500 ose -500.'))); return; }
@@ -278,6 +294,15 @@ class _SubtitlePreviewPageState extends State<SubtitlePreviewPage> {
       return Card(color: overlap || empty ? const Color(0xFF3A241D) : null, child: Padding(padding: const EdgeInsets.all(16), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [Expanded(child: Text('${cueIndex + 1}  •  ${stamp(cue.start)} → ${stamp(cue.end)}', style: const TextStyle(color: Color(0xFFE8C170)))), IconButton(tooltip: 'Shko te ky titër në video', onPressed: videoController == null ? null : () async { await videoController!.seekTo(cue.start); await videoController!.play(); if (mounted) setState(() {}); }, icon: const Icon(Icons.play_arrow))]),
         if (overlap || empty) Padding(padding: const EdgeInsets.only(top: 6), child: Text([if (overlap) 'Mbivendosje kohe', if (empty) 'Cue bosh'].join(' • '), style: const TextStyle(color: Color(0xFFFFB49D), fontWeight: FontWeight.w700))),
+        if (videoController != null) Padding(
+          padding: const EdgeInsets.only(top: 6),
+          child: Wrap(spacing: 8, children: [
+            OutlinedButton.icon(onPressed: () => _markCueBoundary(cueIndex, start: true),
+              icon: const Icon(Icons.first_page), label: const Text('Fillimi = video')),
+            OutlinedButton.icon(onPressed: () => _markCueBoundary(cueIndex, start: false),
+              icon: const Icon(Icons.last_page), label: const Text('Fundi = video')),
+          ]),
+        ),
         const SizedBox(height: 8), SelectableText(cue.original, style: const TextStyle(fontSize: 17)), const SizedBox(height: 8),
         Align(alignment: Alignment.centerRight, child: TextButton.icon(
           onPressed: () { translations[cueIndex].text = cue.original; setState(() {}); },

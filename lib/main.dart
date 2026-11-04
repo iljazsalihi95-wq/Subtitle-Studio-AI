@@ -1,8 +1,10 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:video_player/video_player.dart';
 import 'features/subtitles/srt_editor.dart';
 
 void main() => runApp(const StudioApp());
@@ -31,6 +33,7 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   String? selectedFile;
+  String? selectedVideoPath;
 
   Future<void> _import() async {
     try {
@@ -46,12 +49,16 @@ class _HomePageState extends State<HomePage> {
           return;
         }
         setState(() => selectedFile = file.name);
-        await Navigator.push(context, MaterialPageRoute<void>(builder: (_) => SubtitlePreviewPage(filename: file.name, cues: cues)));
+        await Navigator.push(context, MaterialPageRoute<void>(builder: (_) => SubtitlePreviewPage(filename: file.name, cues: cues, videoPath: selectedVideoPath)));
         return;
       }
       if (!mounted) return;
-      setState(() => selectedFile = file.name);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Videoja u zgjodh: $selectedFile. Transkriptimi AI lidhet përmes backend-it privat.')));
+      if (file.path == null) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Nuk mund të lexohet rruga e videos.')));
+        return;
+      }
+      setState(() { selectedFile = file.name; selectedVideoPath = file.path; });
+      _newSubtitleProject();
     } on FormatException catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Formati i titrave është i pavlefshëm: ${error.message}')));
@@ -64,7 +71,8 @@ class _HomePageState extends State<HomePage> {
   void _newSubtitleProject() {
     Navigator.push(context, MaterialPageRoute<void>(builder: (_) => SubtitlePreviewPage(
       filename: 'projekt_i_ri.srt',
-      cues: [SubtitleCue(start: Duration.zero, end: const Duration(seconds: 3), original: 'Shkruaj titrin këtu', translation: '')],
+      videoPath: selectedVideoPath,
+      cues: [SubtitleCue(start: Duration.zero, end: const Duration(seconds: 3), original: '', translation: '')],
     )));
   }
 
@@ -141,8 +149,8 @@ class _Status extends StatelessWidget {
 }
 
 class SubtitlePreviewPage extends StatefulWidget {
-  const SubtitlePreviewPage({super.key, required this.filename, required this.cues});
-  final String filename; final List<SubtitleCue> cues;
+  const SubtitlePreviewPage({super.key, required this.filename, required this.cues, this.videoPath});
+  final String filename; final List<SubtitleCue> cues; final String? videoPath;
   @override State<SubtitlePreviewPage> createState() => _SubtitlePreviewPageState();
 }
 
@@ -152,6 +160,29 @@ class _SubtitlePreviewPageState extends State<SubtitlePreviewPage> {
   final TextEditingController offsetMs = TextEditingController(text: '0');
   final TextEditingController cueSearch = TextEditingController();
   String searchQuery = '';
+  VideoPlayerController? videoController;
+  bool videoLoading = false;
+  Future<void> _pickVideo() async {
+    final files = await FilePicker.pickFiles(type: FileType.video);
+    if (!mounted || files.isEmpty || files.single.path == null) return;
+    await _loadVideo(files.single.path!);
+  }
+  Future<void> _loadVideo(String path) async {
+    setState(() => videoLoading = true);
+    final next = VideoPlayerController.file(File(path));
+    try {
+      await next.initialize();
+      if (!mounted) { await next.dispose(); return; }
+      final old = videoController;
+      setState(() { videoController = next; videoLoading = false; });
+      await old?.dispose();
+    } catch (_) {
+      await next.dispose();
+      if (!mounted) return;
+      setState(() => videoLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Videoja nuk mund të luhet në këtë pajisje.')));
+    }
+  }
   bool onlyProblems = false;
   void _addCue() {
     final start = timedCues.isEmpty ? Duration.zero : timedCues.last.end;
@@ -171,9 +202,9 @@ class _SubtitlePreviewPageState extends State<SubtitlePreviewPage> {
     try { setState(() => timedCues = shiftSubtitleTiming(timedCues, Duration(milliseconds: value))); }
     on FormatException { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Koha nuk mund të jetë negative.'))); }
   }
-  @override void initState() { super.initState(); timedCues = List.of(widget.cues); translations = timedCues.map((cue) => TextEditingController(text: cue.translation)).toList(); for (final controller in translations) { controller.addListener(_onTranslationChanged); } }
+  @override void initState() { super.initState(); if (widget.videoPath != null) { WidgetsBinding.instance.addPostFrameCallback((_) { if (mounted) _loadVideo(widget.videoPath!); }); } timedCues = List.of(widget.cues); translations = timedCues.map((cue) => TextEditingController(text: cue.translation)).toList(); for (final controller in translations) { controller.addListener(_onTranslationChanged); } }
   void _onTranslationChanged() { if (mounted) setState(() {}); }
-  @override void dispose() { for (final controller in translations) { controller.dispose(); } offsetMs.dispose(); cueSearch.dispose(); super.dispose(); }
+  @override void dispose() { for (final controller in translations) { controller.dispose(); } offsetMs.dispose(); cueSearch.dispose(); videoController?.dispose(); super.dispose(); }
   List<SubtitleCue> get editedCues => [for (var i = 0; i < timedCues.length; i++) timedCues[i].translated(translations[i].text)];
   void _showExport(bool vtt) {
     final output = vtt ? exportVtt(editedCues) : exportSrt(editedCues);
@@ -222,12 +253,19 @@ class _SubtitlePreviewPageState extends State<SubtitlePreviewPage> {
     final report = validateTimeline(editedCues);
     final visible = <int>[for (var i = 0; i < timedCues.length; i++) if ((!onlyProblems || report.overlapIndexes.contains(i) || report.emptyIndexes.contains(i)) && (searchQuery.isEmpty || timedCues[i].original.toLowerCase().contains(searchQuery) || translations[i].text.toLowerCase().contains(searchQuery))) i];
     return Scaffold(appBar: AppBar(title: Text(widget.filename), actions: [TextButton(onPressed: () => _showExport(false), child: const Text('SRT')), TextButton(onPressed: () => _showExport(true), child: const Text('VTT'))]), body: SafeArea(child: ListView.builder(padding: const EdgeInsets.all(18), itemCount: visible.length + 1, itemBuilder: (context, index) {
-      if (index == 0) return Column(children: [ _TimelineBanner(report: report, cueCount: timedCues.length), Row(children: [Expanded(child: TextField(controller: offsetMs, keyboardType: const TextInputType.numberWithOptions(signed: true), decoration: const InputDecoration(labelText: 'Zhvendos kohën (ms)', hintText: '1500 ose -500', border: OutlineInputBorder()))), const SizedBox(width: 8), FilledButton(onPressed: _shift, child: const Text('Zbato'))]), const SizedBox(height: 14), TextField(controller: cueSearch, onChanged: (value) => setState(() => searchQuery = value.trim().toLowerCase()), decoration: const InputDecoration(prefixIcon: Icon(Icons.search), labelText: 'Kërko në titra', border: OutlineInputBorder())), SwitchListTile(title: const Text('Shfaq vetëm problemet e timeline-it'), value: onlyProblems, onChanged: (value) => setState(() => onlyProblems = value)), Row(children: [Expanded(child: Text('${visible.length} nga ${timedCues.length} titra', style: const TextStyle(color: Color(0xFF9EABBC)))), FilledButton.icon(onPressed: _addCue, icon: const Icon(Icons.add), label: const Text('Shto titër'))]), const SizedBox(height: 16)]);
+      if (index == 0) return Column(children: [
+        if (videoController != null && videoController!.value.isInitialized) ...[
+          AspectRatio(aspectRatio: videoController!.value.aspectRatio, child: VideoPlayer(videoController!)),
+          VideoProgressIndicator(videoController!, allowScrubbing: true, padding: const EdgeInsets.symmetric(vertical: 12)),
+          Row(children: [IconButton(onPressed: () { final v = videoController!; v.value.isPlaying ? v.pause() : v.play(); setState(() {}); }, icon: Icon(videoController!.value.isPlaying ? Icons.pause_circle : Icons.play_circle)), Text('Video e lidhur me titrat')]),
+        ] else if (videoLoading) const LinearProgressIndicator(),
+        OutlinedButton.icon(onPressed: _pickVideo, icon: const Icon(Icons.video_library_outlined), label: Text(videoController == null ? 'Ngarko videon përkatëse' : 'Ndrysho videon')),
+        _TimelineBanner(report: report, cueCount: timedCues.length), Row(children: [Expanded(child: TextField(controller: offsetMs, keyboardType: const TextInputType.numberWithOptions(signed: true), decoration: const InputDecoration(labelText: 'Zhvendos kohën (ms)', hintText: '1500 ose -500', border: OutlineInputBorder()))), const SizedBox(width: 8), FilledButton(onPressed: _shift, child: const Text('Zbato'))]), const SizedBox(height: 14), TextField(controller: cueSearch, onChanged: (value) => setState(() => searchQuery = value.trim().toLowerCase()), decoration: const InputDecoration(prefixIcon: Icon(Icons.search), labelText: 'Kërko në titra', border: OutlineInputBorder())), SwitchListTile(title: const Text('Shfaq vetëm problemet e timeline-it'), value: onlyProblems, onChanged: (value) => setState(() => onlyProblems = value)), Row(children: [Expanded(child: Text('${visible.length} nga ${timedCues.length} titra', style: const TextStyle(color: Color(0xFF9EABBC)))), FilledButton.icon(onPressed: _addCue, icon: const Icon(Icons.add), label: const Text('Shto titër'))]), const SizedBox(height: 16)]);
       final cueIndex = visible[index - 1]; final cue = timedCues[cueIndex];
       String stamp(Duration value) => value.toString().split('.').first;
       final overlap = report.overlapIndexes.contains(cueIndex); final empty = report.emptyIndexes.contains(cueIndex);
       return Card(color: overlap || empty ? const Color(0xFF3A241D) : null, child: Padding(padding: const EdgeInsets.all(16), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text('${cueIndex + 1}  •  ${stamp(cue.start)} → ${stamp(cue.end)}', style: const TextStyle(color: Color(0xFFE8C170))),
+        Row(children: [Expanded(child: Text('${cueIndex + 1}  •  ${stamp(cue.start)} → ${stamp(cue.end)}', style: const TextStyle(color: Color(0xFFE8C170)))), IconButton(tooltip: 'Shko te ky titër në video', onPressed: videoController == null ? null : () async { await videoController!.seekTo(cue.start); await videoController!.play(); if (mounted) setState(() {}); }, icon: const Icon(Icons.play_arrow))]),
         if (overlap || empty) Padding(padding: const EdgeInsets.only(top: 6), child: Text([if (overlap) 'Mbivendosje kohe', if (empty) 'Cue bosh'].join(' • '), style: const TextStyle(color: Color(0xFFFFB49D), fontWeight: FontWeight.w700))),
         const SizedBox(height: 8), SelectableText(cue.original, style: const TextStyle(fontSize: 17)), const SizedBox(height: 8),
         Align(alignment: Alignment.centerRight, child: TextButton.icon(

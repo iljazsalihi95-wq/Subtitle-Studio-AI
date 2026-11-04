@@ -5,17 +5,20 @@ from PIL import Image, ImageDraw, ImageFilter
 SIZE = 1024
 SCALE = 4
 S = SIZE * SCALE
-im = Image.new("RGB", (S, S))
-pixels = im.load()
-for y in range(S):
-    t = y / (S - 1)
-    for x in range(S):
-        glow = max(0.0, 1.0 - ((x / S - .70) ** 2 + (y / S - .22) ** 2) * 3.3)
-        pixels[x, y] = (
+# Render the gradient at final resolution; avoid 16.7 million Python pixel writes.
+# The vector artwork below is still supersampled for crisp launcher sizes.
+background = Image.new("RGB", (SIZE, SIZE))
+bp = background.load()
+for y in range(SIZE):
+    t = y / (SIZE - 1)
+    for x in range(SIZE):
+        glow = max(0.0, 1.0 - ((x / SIZE - .70) ** 2 + (y / SIZE - .22) ** 2) * 3.3)
+        bp[x, y] = (
             int(7 + 16 * (1-t) + 9 * glow),
             int(13 + 24 * (1-t) + 18 * glow),
             int(28 + 37 * (1-t) + 25 * glow),
         )
+im = background.resize((S, S), Image.Resampling.BICUBIC)
 gold = (244, 203, 120)
 white = (245, 249, 255)
 d = ImageDraw.Draw(im)

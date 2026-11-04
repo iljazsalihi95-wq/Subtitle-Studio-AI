@@ -42,6 +42,10 @@ class _HomePageState extends State<HomePage> {
         final bytes = await file.readAsBytes();
         final cues = parseSubtitles(utf8.decode(bytes, allowMalformed: true));
         if (!mounted) return;
+        if (cues.isEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Nuk u gjet asnjë titër i vlefshëm SRT/VTT. Kontrollo formatin e skedarit.')));
+          return;
+        }
         await Navigator.push(context, MaterialPageRoute<void>(builder: (_) => SubtitlePreviewPage(filename: file.name, cues: cues)));
         return;
       }
@@ -60,6 +64,10 @@ class _HomePageState extends State<HomePage> {
       final file = files.single;
       final cues = parseSubtitles(utf8.decode(await file.readAsBytes(), allowMalformed: true));
       if (!mounted) return;
+      if (cues.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Nuk u gjet asnjë titër i vlefshëm SRT/VTT.')));
+        return;
+      }
       await Navigator.push(context, MaterialPageRoute<void>(builder: (_) => SubtitlePreviewPage(filename: file.name, cues: cues)));
     } catch (_) {
       if (!mounted) return;

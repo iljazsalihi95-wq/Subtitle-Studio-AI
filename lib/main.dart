@@ -292,7 +292,26 @@ class _SubtitlePreviewPageState extends State<SubtitlePreviewPage> {
             }),
           ])),
           VideoProgressIndicator(videoController!, allowScrubbing: true, padding: const EdgeInsets.symmetric(vertical: 12)),
-          Row(children: [IconButton(onPressed: () { final v = videoController!; v.value.isPlaying ? v.pause() : v.play(); setState(() {}); }, icon: Icon(videoController!.value.isPlaying ? Icons.pause_circle : Icons.play_circle)), Text('Video e lidhur me titrat')]),
+          ValueListenableBuilder<VideoPlayerValue>(
+            valueListenable: videoController!,
+            builder: (context, value, _) {
+              String clock(Duration d) => '${d.inHours.toString().padLeft(2, '0')}:${(d.inMinutes % 60).toString().padLeft(2, '0')}:${(d.inSeconds % 60).toString().padLeft(2, '0')}';
+              Future<void> jump(int seconds) async {
+                final target = value.position + Duration(seconds: seconds);
+                final bounded = target < Duration.zero ? Duration.zero : (target > value.duration ? value.duration : target);
+                await videoController!.seekTo(bounded);
+              }
+              return Row(children: [
+                IconButton(tooltip: '5 sekonda prapa', onPressed: () => jump(-5), icon: const Icon(Icons.replay_5)),
+                IconButton(tooltip: value.isPlaying ? 'Pauzo' : 'Luaj', onPressed: () async {
+                  if (value.isPlaying) { await videoController!.pause(); }
+                  else { if (value.position >= value.duration) await videoController!.seekTo(Duration.zero); await videoController!.play(); }
+                }, icon: Icon(value.isPlaying ? Icons.pause_circle : Icons.play_circle)),
+                IconButton(tooltip: '5 sekonda përpara', onPressed: () => jump(5), icon: const Icon(Icons.forward_5)),
+                Expanded(child: Text('${clock(value.position)} / ${clock(value.duration)}', textAlign: TextAlign.end, style: const TextStyle(fontSize: 12))),
+              ]);
+            },
+          ),
         ] else if (videoLoading) const LinearProgressIndicator(),
         OutlinedButton.icon(onPressed: _pickVideo, icon: const Icon(Icons.video_library_outlined), label: Text(videoController == null ? 'Ngarko videon përkatëse' : 'Ndrysho videon')),
         _TimelineBanner(report: report, cueCount: timedCues.length), Row(children: [Expanded(child: TextField(controller: offsetMs, keyboardType: const TextInputType.numberWithOptions(signed: true), decoration: const InputDecoration(labelText: 'Zhvendos kohën (ms)', hintText: '1500 ose -500', border: OutlineInputBorder()))), const SizedBox(width: 8), FilledButton(onPressed: _shift, child: const Text('Zbato'))]), const SizedBox(height: 14), TextField(controller: cueSearch, onChanged: (value) => setState(() => searchQuery = value.trim().toLowerCase()), decoration: const InputDecoration(prefixIcon: Icon(Icons.search), labelText: 'Kërko në titra', border: OutlineInputBorder())), SwitchListTile(title: const Text('Shfaq vetëm problemet e timeline-it'), value: onlyProblems, onChanged: (value) => setState(() => onlyProblems = value)), Row(children: [Expanded(child: Text('${visible.length} nga ${timedCues.length} titra', style: const TextStyle(color: Color(0xFF9EABBC)))), FilledButton.icon(onPressed: _addCue, icon: const Icon(Icons.add), label: const Text('Shto titër'))]), const SizedBox(height: 16)]); }

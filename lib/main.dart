@@ -7,6 +7,13 @@ import 'package:flutter/services.dart';
 import 'package:video_player/video_player.dart';
 import 'features/subtitles/srt_editor.dart';
 
+
+/// Strip the UTF-8 BOM commonly exported by subtitle editors before parsing.
+String _decodeSubtitleText(List<int> bytes) {
+  final offset = bytes.length >= 3 && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF ? 3 : 0;
+  return utf8.decode(bytes.skip(offset).toList(), allowMalformed: true);
+}
+
 void main() => runApp(const StudioApp());
 
 class StudioApp extends StatelessWidget {
@@ -47,7 +54,7 @@ class _HomePageState extends State<HomePage> {
       }
       if (['srt', 'vtt'].contains(file.extension?.toLowerCase())) {
         final bytes = await file.readAsBytes();
-        final cues = parseSubtitles(utf8.decode(bytes, allowMalformed: true));
+        final cues = parseSubtitles(_decodeSubtitleText(bytes));
         if (!mounted) return;
         if (cues.isEmpty) {
           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Nuk u gjet asnjë titër i vlefshëm SRT/VTT. Kontrollo formatin e skedarit.')));
@@ -108,7 +115,7 @@ class _HomePageState extends State<HomePage> {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Skedari i titrave është mbi 20 MB.')));
         return;
       }
-      final cues = parseSubtitles(utf8.decode(await file.readAsBytes(), allowMalformed: true));
+      final cues = parseSubtitles(_decodeSubtitleText(await file.readAsBytes()));
       if (!mounted) return;
       if (cues.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Nuk u gjet asnjë titër i vlefshëm SRT/VTT.')));

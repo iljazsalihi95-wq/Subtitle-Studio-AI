@@ -268,6 +268,12 @@ class _SubtitlePreviewPageState extends State<SubtitlePreviewPage> {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Fundi duhet të jetë pas fillimit të titrit.')));
       return;
     }
+    // Prevent editing a boundary across neighbouring subtitles.
+    if ((index > 0 && newStart < timedCues[index - 1].end) ||
+        (index + 1 < timedCues.length && newEnd > timedCues[index + 1].start)) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Koha mbivendoset me titrin fqinj. Zhvendose kufirin brenda hapësirës së lirë.')));
+      return;
+    }
     setState(() => timedCues[index] = SubtitleCue(
       start: newStart, end: newEnd, original: cue.original,
       translation: translations[index].text,

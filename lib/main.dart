@@ -239,6 +239,11 @@ class _SubtitlePreviewPageState extends State<SubtitlePreviewPage> {
     var end = start + const Duration(seconds: 3);
     if (videoDuration != null && end > videoDuration) end = videoDuration;
     if (index < timedCues.length && end > timedCues[index].start) end = timedCues[index].start;
+    // Do not create an overlapping subtitle inside the preceding cue.
+    if (index > 0 && timedCues[index - 1].end > start) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Ky pozicion mbivendoset me titrin e mëparshëm.')));
+      return;
+    }
     if (end <= start) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Nuk ka hapësirë për titër në këtë pozicion.')));
       return;

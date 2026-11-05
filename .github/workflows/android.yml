@@ -1,4 +1,6 @@
 name: Android APK
+permissions:
+  contents: read
 on:
   workflow_dispatch:
   push:
@@ -8,6 +10,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: subosito/flutter-action@v2
         with:
           channel: stable

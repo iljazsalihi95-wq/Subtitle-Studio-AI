@@ -223,20 +223,26 @@ class _SubtitlePreviewPageState extends State<SubtitlePreviewPage> {
     WidgetsBinding.instance.addPostFrameCallback((_) => removed.dispose());
   }
   void _addCue() {
-    final playbackPosition = videoController?.value.position;
-    final previousEnd = timedCues.isEmpty ? Duration.zero : timedCues.last.end;
-    final start = playbackPosition != null && playbackPosition > previousEnd ? playbackPosition : previousEnd;
-    final duration = videoController?.value.duration;
-    if (duration != null && start >= duration) {
+    final position = videoController?.value.position;
+    final start = position ?? (timedCues.isEmpty ? Duration.zero : timedCues.last.end);
+    final videoDuration = videoController?.value.duration;
+    if (videoDuration != null && start >= videoDuration) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Shko më herët në video për të shtuar titër.')));
       return;
     }
-    final end = duration != null && start + const Duration(seconds: 3) > duration ? duration : start + const Duration(seconds: 3);
-    final controller = TextEditingController();
-    controller.addListener(_onTranslationChanged);
+    final insertAt = timedCues.indexWhere((cue) => cue.start > start);
+    final index = insertAt < 0 ? timedCues.length : insertAt;
+    var end = start + const Duration(seconds: 3);
+    if (videoDuration != null && end > videoDuration) end = videoDuration;
+    if (index < timedCues.length && end > timedCues[index].start) end = timedCues[index].start;
+    if (end <= start) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Nuk ka hapësirë për titër në këtë pozicion.')));
+      return;
+    }
+    final controller = TextEditingController()..addListener(_onTranslationChanged);
     setState(() {
-      timedCues.add(SubtitleCue(start: start, end: end, original: '', translation: ''));
-      translations.add(controller);
+      timedCues.insert(index, SubtitleCue(start: start, end: end, original: '', translation: ''));
+      translations.insert(index, controller);
       onlyProblems = false;
       searchQuery = '';
       cueSearch.clear();

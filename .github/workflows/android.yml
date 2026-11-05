@@ -13,6 +13,20 @@ jobs:
           channel: stable
       - name: Generate Android platform files
         run: flutter create --platforms=android --project-name "$(grep '^name:' pubspec.yaml | awk '{print $2}')" .
+      - name: Use official Gradle distribution CDN
+        run: |
+          python3 - <<'PYCODE'
+          from pathlib import Path
+          p = Path('android/gradle/wrapper/gradle-wrapper.properties')
+          text = p.read_text().replace('services.gradle.org/distributions/', 'downloads.gradle.org/distributions/')
+          p.write_text(text)
+          PYCODE
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ runner.os }}-${{ hashFiles('android/gradle/wrapper/gradle-wrapper.properties') }}
       - name: Install Android API 36 and set compileSdk
         run: |
           yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platforms;android-36"

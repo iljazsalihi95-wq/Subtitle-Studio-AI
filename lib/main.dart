@@ -5,14 +5,9 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:video_player/video_player.dart';
+import 'package:path_provider/path_provider.dart';
 import 'features/subtitles/srt_editor.dart';
-
-
-/// Strip the UTF-8 BOM commonly exported by subtitle editors before parsing.
-String _decodeSubtitleText(List<int> bytes) {
-  final offset = bytes.length >= 3 && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF ? 3 : 0;
-  return utf8.decode(bytes.skip(offset).toList(), allowMalformed: true);
-}
+import 'features/ai/ai_connection.dart';
 
 void main() => runApp(const StudioApp());
 
@@ -54,7 +49,7 @@ class _HomePageState extends State<HomePage> {
       }
       if (['srt', 'vtt'].contains(file.extension?.toLowerCase())) {
         final bytes = await file.readAsBytes();
-        final cues = parseSubtitles(_decodeSubtitleText(bytes));
+        final cues = parseSubtitles(utf8.decode(bytes, allowMalformed: true));
         if (!mounted) return;
         if (cues.isEmpty) {
           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Nuk u gjet asnjë titër i vlefshëm SRT/VTT. Kontrollo formatin e skedarit.')));
@@ -115,7 +110,7 @@ class _HomePageState extends State<HomePage> {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Skedari i titrave është mbi 20 MB.')));
         return;
       }
-      final cues = parseSubtitles(_decodeSubtitleText(await file.readAsBytes()));
+      final cues = parseSubtitles(utf8.decode(await file.readAsBytes(), allowMalformed: true));
       if (!mounted) return;
       if (cues.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Nuk u gjet asnjë titër i vlefshëm SRT/VTT.')));
@@ -128,9 +123,18 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  void _showModuleInfo(String title, String message) {
-    if (!mounted) return;
-    showModalBottomSheet<void>(context: context, showDragHandle: true, builder: (sheetContext) => SafeArea(child: Padding(padding: const EdgeInsets.all(24), child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [Text(title, style: Theme.of(sheetContext).textTheme.headlineSmall), const SizedBox(height: 12), Text(message), const SizedBox(height: 18), FilledButton(onPressed: () => Navigator.pop(sheetContext), child: const Text('Mbyll'))]))));
+  Future<void> _openProject() async {
+    try {
+      final files = await FilePicker.pickFiles(type: FileType.custom, allowedExtensions: ['ssai']);
+      if (!mounted || files.isEmpty) return;
+      final raw = await files.single.readAsBytes();
+      if (raw.length > 20 * 1024 * 1024) throw const FormatException('Projekt tepër i madh');
+      final project = decodeProject(utf8.decode(raw));
+      if (!mounted) return;
+      await Navigator.push(context, MaterialPageRoute<void>(builder: (_) => SubtitlePreviewPage(filename: project.title, cues: project.cues, videoPath: project.videoPath)));
+    } catch (_) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Projekti nuk mund të hapej. Zgjidh një skedar SSAI të vlefshëm.')));
+    }
   }
 
   @override
@@ -143,11 +147,11 @@ class _HomePageState extends State<HomePage> {
       _Action(icon: Icons.video_file_outlined, title: 'Projekt i ri', subtitle: selectedFile ?? 'Video • SRT • VTT', primary: true, onTap: _import),
       _Action(icon: Icons.subtitles_outlined, title: 'Studio me video', subtitle: 'Zgjidh videon • shiko • sinkronizo titrat', onTap: _openVideoStudio),
       _Action(icon: Icons.file_open_outlined, title: 'Importo titra ekzistues', subtitle: 'Zgjidh një skedar SRT ose VTT', onTap: _openSubtitleStudio),
-      _Action(icon: Icons.translate, title: 'Përkthimi AI', subtitle: 'Shqip • kërkon lidhjen e backend-it', onTap: () => _showModuleInfo('Përkthimi AI', 'Lidhja me backend-in AI nuk është konfiguruar ende në këtë APK. Redaktimi manual dhe eksporti SRT/VTT funksionojnë pa internet.')),
+      _Action(icon: Icons.folder_open, title: 'Hap projektin', subtitle: 'Video dhe redaktime të ruajtura • SSAI', onTap: _openProject),
       _Action(icon: Icons.ios_share_outlined, title: 'Eksporto', subtitle: 'Hap titrat për eksport SRT • VTT', onTap: _openSubtitleStudio),
       const SizedBox(height: 18), const _Status(),
     ])),
-    bottomNavigationBar: NavigationBar(selectedIndex: 0, onDestinationSelected: (index) { if (index == 1) { _openVideoStudio(); } else if (index == 2) { _showModuleInfo('Përkthimi AI', 'Përkthimi kërkon lidhjen me backend-in privat.'); } else if (index == 3) { _showModuleInfo('Projektet', 'Projektet ruhen lokalisht pasi të aktivizohet ruajtja e tyre.'); } }, destinations: const [
+    bottomNavigationBar: NavigationBar(selectedIndex: 0, onDestinationSelected: (index) { if (index == 1) { _openVideoStudio(); } else if (index == 2) { configureAi(context); } else if (index == 3) { _openProject(); } }, destinations: const [
       NavigationDestination(icon: Icon(Icons.home_outlined), selectedIcon: Icon(Icons.home), label: 'Ballina'),
       NavigationDestination(icon: Icon(Icons.subtitles_outlined), label: 'Studio'),
       NavigationDestination(icon: Icon(Icons.auto_awesome_outlined), label: 'AI'),
@@ -197,6 +201,64 @@ class _SubtitlePreviewPageState extends State<SubtitlePreviewPage> {
   VideoPlayerController? videoController;
   bool videoLoading = false;
   double playbackSpeed = 1.0;
+  String? projectVideoPath;
+  bool aiBusy = false;
+  Future<void> _saveProject() async {
+    try {
+      if (projectVideoPath != null) {
+        final dir = await getApplicationDocumentsDirectory();
+        if (!projectVideoPath!.startsWith('${dir.path}/')) {
+          final source = File(projectVideoPath!);
+          final ext = source.path.split('.').last;
+          final copy = await source.copy('${dir.path}/video_${DateTime.now().microsecondsSinceEpoch}.$ext');
+          projectVideoPath = copy.path;
+        }
+      }
+      final result = await FilePicker.saveFile(dialogTitle: 'Ruaj projektin', fileName: '${widget.filename}.ssai', bytes: Uint8List.fromList(utf8.encode(encodeProject(SubtitleProject(title: widget.filename, cues: editedCues, videoPath: projectVideoPath)))));
+      if (mounted && result != null) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Projekti u ruajt. Mbaje edhe videon në pajisje.')));
+    } catch (_) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Ruajtja e projektit dështoi.')));
+    }
+  }
+  Future<void> _translate(int index) async {
+    if (aiBusy) return;
+    final source = translations[index].text.trim().isEmpty ? timedCues[index].original : translations[index].text;
+    if (source.trim().isEmpty) return;
+    if (!await configureAi(context) || !mounted) return;
+    setState(() => aiBusy = true);
+    final controller = translations[index];
+    try {
+      final text = await aiText(source, operation: 'translate');
+      if (mounted && translations.contains(controller)) controller.text = text;
+    } catch (error) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$error')));
+    } finally { if (mounted) setState(() => aiBusy = false); }
+  }
+  void _split(int index) {
+    final cue = editedCues[index];
+    final at = videoController?.value.position ?? Duration(milliseconds: (cue.start.inMilliseconds + cue.end.inMilliseconds) ~/ 2);
+    try {
+      final parts = splitCue(cue, at);
+      translations[index].text = parts.first.translation;
+      final next = TextEditingController(text: parts.last.translation)..addListener(_onTranslationChanged);
+      setState(() { timedCues[index] = parts.first; timedCues.insert(index + 1, parts.last); translations.insert(index + 1, next); });
+    } on FormatException {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Vendose videon brenda kohës së këtij titri për ta ndarë.')));
+    }
+  }
+  void _merge(int index) {
+    if (index + 1 >= timedCues.length) return;
+    final merged = mergeCues(editedCues[index], editedCues[index + 1]);
+    final removed = translations.removeAt(index + 1);
+    setState(() { timedCues[index] = merged; timedCues.removeAt(index + 1); translations[index].text = merged.translation; });
+    WidgetsBinding.instance.addPostFrameCallback((_) => removed.dispose());
+  }
+  Future<void> _fullscreen() async {
+    final player = videoController;
+    if (player == null || !player.value.isInitialized) return;
+    await Navigator.push(context, MaterialPageRoute<void>(builder: (_) => Scaffold(backgroundColor: Colors.black, body: SafeArea(child: Stack(children: [Center(child: AspectRatio(aspectRatio: player.value.aspectRatio, child: VideoPlayer(player))), Positioned(left: 8, top: 8, child: IconButton(onPressed: () => Navigator.pop(context), icon: const Icon(Icons.fullscreen_exit))), Positioned(left: 12, right: 12, bottom: 12, child: ValueListenableBuilder<VideoPlayerValue>(valueListenable: player, builder: (_, value, __) => Column(children: [Text(editedCues.where((c) => c.start <= value.position && c.end > value.position).map((c) => c.translation.isEmpty ? c.original : c.translation).join('\n'), textAlign: TextAlign.center, style: const TextStyle(color: Colors.white, backgroundColor: Colors.black87, fontSize: 22)), VideoProgressIndicator(player, allowScrubbing: true), IconButton(onPressed: () => value.isPlaying ? player.pause() : player.play(), icon: Icon(value.isPlaying ? Icons.pause : Icons.play_arrow))])))])))));
+  }
+
   Future<void> _pickVideo() async {
     final files = await FilePicker.pickFiles(type: FileType.video);
     if (!mounted || files.isEmpty || files.single.path == null) return;
@@ -210,7 +272,7 @@ class _SubtitlePreviewPageState extends State<SubtitlePreviewPage> {
       await next.setPlaybackSpeed(playbackSpeed);
       if (!mounted) { await next.dispose(); return; }
       final old = videoController;
-      setState(() { videoController = next; videoLoading = false; });
+      setState(() { videoController = next; projectVideoPath = path; videoLoading = false; });
       await old?.dispose();
     } catch (_) {
       await next.dispose();
@@ -246,11 +308,6 @@ class _SubtitlePreviewPageState extends State<SubtitlePreviewPage> {
     var end = start + const Duration(seconds: 3);
     if (videoDuration != null && end > videoDuration) end = videoDuration;
     if (index < timedCues.length && end > timedCues[index].start) end = timedCues[index].start;
-    // Do not create an overlapping subtitle inside the preceding cue.
-    if (index > 0 && timedCues[index - 1].end > start) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Ky pozicion mbivendoset me titrin e mëparshëm.')));
-      return;
-    }
     if (end <= start) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Nuk ka hapësirë për titër në këtë pozicion.')));
       return;
@@ -273,12 +330,6 @@ class _SubtitlePreviewPageState extends State<SubtitlePreviewPage> {
     final newEnd = start ? cue.end : position;
     if (newEnd <= newStart) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Fundi duhet të jetë pas fillimit të titrit.')));
-      return;
-    }
-    // Prevent editing a boundary across neighbouring subtitles.
-    if ((index > 0 && newStart < timedCues[index - 1].end) ||
-        (index + 1 < timedCues.length && newEnd > timedCues[index + 1].start)) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Koha mbivendoset me titrin fqinj. Zhvendose kufirin brenda hapësirës së lirë.')));
       return;
     }
     setState(() => timedCues[index] = SubtitleCue(
@@ -342,7 +393,7 @@ class _SubtitlePreviewPageState extends State<SubtitlePreviewPage> {
   Widget build(BuildContext context) {
     final report = validateTimeline(editedCues);
     final visible = <int>[for (var i = 0; i < timedCues.length; i++) if ((!onlyProblems || report.overlapIndexes.contains(i) || report.emptyIndexes.contains(i)) && (searchQuery.isEmpty || timedCues[i].original.toLowerCase().contains(searchQuery) || translations[i].text.toLowerCase().contains(searchQuery))) i];
-    return Scaffold(appBar: AppBar(title: Text(widget.filename), actions: [TextButton(onPressed: () => _showExport(false), child: const Text('SRT')), TextButton(onPressed: () => _showExport(true), child: const Text('VTT'))]), body: SafeArea(child: ListView.builder(padding: const EdgeInsets.all(18), itemCount: visible.length + 1, itemBuilder: (context, index) {
+    return Scaffold(appBar: AppBar(title: Text(widget.filename), actions: [IconButton(tooltip: 'Ruaj projektin', onPressed: _saveProject, icon: const Icon(Icons.save_outlined)), TextButton(onPressed: () => _showExport(false), child: const Text('SRT')), TextButton(onPressed: () => _showExport(true), child: const Text('VTT'))]), body: SafeArea(child: ListView.builder(padding: const EdgeInsets.all(18), itemCount: visible.length + 1, itemBuilder: (context, index) {
       if (index == 0) { return Column(children: [
         if (videoController != null && videoController!.value.isInitialized) ...[
           AspectRatio(aspectRatio: videoController!.value.aspectRatio, child: Stack(fit: StackFit.expand, children: [
@@ -389,6 +440,7 @@ class _SubtitlePreviewPageState extends State<SubtitlePreviewPage> {
                   ],
                   child: Padding(padding: const EdgeInsets.symmetric(horizontal: 8), child: Text('$playbackSpeed×', style: const TextStyle(fontWeight: FontWeight.w700))),
                 ),
+                IconButton(tooltip: 'Ekran i plotë', onPressed: _fullscreen, icon: const Icon(Icons.fullscreen)),
                 IconButton(tooltip: '5 sekonda përpara', onPressed: () => jump(5), icon: const Icon(Icons.forward_5)),
                 Expanded(child: Text('${clock(value.position)} / ${clock(value.duration)}', textAlign: TextAlign.end, style: const TextStyle(fontSize: 12))),
               ]);
@@ -396,6 +448,11 @@ class _SubtitlePreviewPageState extends State<SubtitlePreviewPage> {
           ),
         ] else if (videoLoading) const LinearProgressIndicator(),
         OutlinedButton.icon(onPressed: _pickVideo, icon: const Icon(Icons.video_library_outlined), label: Text(videoController == null ? 'Ngarko videon përkatëse' : 'Ndrysho videon')),
+        if (videoController != null && videoController!.value.isInitialized)
+          SizedBox(height: 62, child: SingleChildScrollView(scrollDirection: Axis.horizontal, child: SizedBox(width: (videoController!.value.duration.inSeconds * 12.0).clamp(340.0, 60000.0), child: LayoutBuilder(builder: (_, box) {
+            final total = videoController!.value.duration.inMilliseconds;
+            return Stack(children: [for (var i = 0; i < timedCues.length; i++) Positioned(left: total == 0 ? 0 : box.maxWidth * timedCues[i].start.inMilliseconds / total, width: total == 0 ? 30 : (box.maxWidth * (timedCues[i].end - timedCues[i].start).inMilliseconds / total).clamp(12.0, box.maxWidth), top: 8, bottom: 8, child: GestureDetector(onTap: () => videoController!.seekTo(timedCues[i].start), child: Container(margin: const EdgeInsets.only(right: 1), decoration: BoxDecoration(color: const Color(0xFF244978), border: Border.all(color: const Color(0xFFE8C170)), borderRadius: BorderRadius.circular(5)), child: Text('${i + 1}', overflow: TextOverflow.clip)))), ValueListenableBuilder<VideoPlayerValue>(valueListenable: videoController!, builder: (_, value, __) => Positioned(left: total == 0 ? 0 : box.maxWidth * value.position.inMilliseconds / total, top: 0, bottom: 0, child: Container(width: 2, color: Colors.white)))]);
+          })))),
         _TimelineBanner(report: report, cueCount: timedCues.length), Row(children: [Expanded(child: TextField(controller: offsetMs, keyboardType: const TextInputType.numberWithOptions(signed: true), decoration: const InputDecoration(labelText: 'Zhvendos kohën (ms)', hintText: '1500 ose -500', border: OutlineInputBorder()))), const SizedBox(width: 8), FilledButton(onPressed: _shift, child: const Text('Zbato'))]), const SizedBox(height: 14), TextField(controller: cueSearch, onChanged: (value) => setState(() => searchQuery = value.trim().toLowerCase()), decoration: const InputDecoration(prefixIcon: Icon(Icons.search), labelText: 'Kërko në titra', border: OutlineInputBorder())), SwitchListTile(title: const Text('Shfaq vetëm problemet e timeline-it'), value: onlyProblems, onChanged: (value) => setState(() => onlyProblems = value)), Row(children: [Expanded(child: Text('${visible.length} nga ${timedCues.length} titra', style: const TextStyle(color: Color(0xFF9EABBC)))), FilledButton.icon(onPressed: _addCue, icon: const Icon(Icons.add), label: const Text('Shto titër'))]), const SizedBox(height: 16)]); }
       final cueIndex = visible[index - 1]; final cue = timedCues[cueIndex];
       String stamp(Duration value) => value.toString().split('.').first;
@@ -418,6 +475,7 @@ class _SubtitlePreviewPageState extends State<SubtitlePreviewPage> {
           icon: const Icon(Icons.content_copy_outlined, size: 17),
           label: const Text('Kopjo origjinalin në redaktim'),
         )),
+        Wrap(spacing: 8, children: [TextButton.icon(onPressed: () => _split(cueIndex), icon: const Icon(Icons.call_split), label: const Text('Ndaj')), TextButton.icon(onPressed: cueIndex + 1 < timedCues.length ? () => _merge(cueIndex) : null, icon: const Icon(Icons.merge), label: const Text('Bashko')), TextButton.icon(onPressed: aiBusy ? null : () => _translate(cueIndex), icon: const Icon(Icons.translate), label: const Text('Përkthe AI'))]),
         const SizedBox(height: 8),
         TextField(controller: translations[cueIndex], maxLines: null, decoration: const InputDecoration(labelText: 'Teksti i redaktuar / përkthimi shqip', border: OutlineInputBorder())),
       ])));
@@ -430,3 +488,4 @@ class _TimelineBanner extends StatelessWidget {
   final SubtitleTimelineReport report; final int cueCount;
   @override Widget build(BuildContext context) => Container(margin: const EdgeInsets.only(bottom: 14), padding: const EdgeInsets.all(14), decoration: BoxDecoration(color: report.isClean ? const Color(0xFF102B27) : const Color(0xFF38271E), borderRadius: BorderRadius.circular(16)), child: Row(children: [Icon(report.isClean ? Icons.verified_outlined : Icons.warning_amber_rounded, color: const Color(0xFFE8C170)), const SizedBox(width: 10), Expanded(child: Text(report.isClean ? 'Timeline i pastër • $cueCount cue' : '${report.overlapIndexes.length} mbivendosje • ${report.emptyIndexes.length} cue bosh', style: const TextStyle(fontWeight: FontWeight.w700)))]));
 }
+

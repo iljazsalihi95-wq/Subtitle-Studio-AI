@@ -1,3 +1,4 @@
+import 'dart:convert';
 class SubtitleCue {
   const SubtitleCue({required this.start, required this.end, required this.original, this.translation = ''});
   final Duration start;
@@ -119,4 +120,38 @@ List<SubtitleCue> parseSubtitles(String source) {
     cues.add(SubtitleCue(start: start, end: end, original: lines.skip(timeIndex + 1).join('\n')));
   }
   return cues;
+}
+
+
+class SubtitleProject {
+  const SubtitleProject({required this.title, required this.cues, this.videoPath});
+  final String title;
+  final String? videoPath;
+  final List<SubtitleCue> cues;
+}
+
+String encodeProject(SubtitleProject project) => jsonEncode({
+  'format': 'subtitle-studio-ai', 'version': 1, 'title': project.title,
+  'videoPath': project.videoPath,
+  'cues': [for (final c in project.cues) {'start': c.start.inMilliseconds, 'end': c.end.inMilliseconds, 'original': c.original, 'translation': c.translation}],
+});
+
+SubtitleProject decodeProject(String source) {
+  final data = jsonDecode(source);
+  if (data is! Map || data['format'] != 'subtitle-studio-ai' || data['version'] != 1 || data['title'] is! String || data['cues'] is! List || (data['videoPath'] != null && data['videoPath'] is! String)) throw const FormatException('Invalid project');
+  final cues = <SubtitleCue>[];
+  for (final c in data['cues']) {
+    if (c is! Map || c['start'] is! int || c['end'] is! int || c['start'] < 0 || c['end'] <= c['start'] || c['original'] is! String || c['translation'] is! String) throw const FormatException('Invalid cue');
+    cues.add(SubtitleCue(start: Duration(milliseconds: c['start']), end: Duration(milliseconds: c['end']), original: c['original'], translation: c['translation']));
+  }
+  return SubtitleProject(title: data['title'], videoPath: data['videoPath'], cues: cues);
+}
+
+List<SubtitleCue> splitCue(SubtitleCue cue, Duration position) {
+  if (position <= cue.start || position >= cue.end) throw const FormatException('Split outside cue');
+  return [SubtitleCue(start: cue.start, end: position, original: cue.original, translation: cue.translation), SubtitleCue(start: position, end: cue.end, original: cue.original, translation: cue.translation)];
+}
+SubtitleCue mergeCues(SubtitleCue first, SubtitleCue second) {
+  String combine(String a, String b) => [a, b].where((s) => s.trim().isNotEmpty).join('\n');
+  return SubtitleCue(start: first.start < second.start ? first.start : second.start, end: first.end > second.end ? first.end : second.end, original: combine(first.original, second.original), translation: combine(first.translation.isEmpty ? first.original : first.translation, second.translation.isEmpty ? second.original : second.translation));
 }

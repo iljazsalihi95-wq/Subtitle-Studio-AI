@@ -152,7 +152,7 @@ class _HomePageState extends State<HomePage> {
       Text('Studio profesionale për titrat e tu.', style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w800)),
       const SizedBox(height: 8), const Text('Importo • kontrollo timeline-in • përkthe • eksporto', style: TextStyle(color: Color(0xFFB7C2D0), height: 1.45)),
       const SizedBox(height: 24),
-      _Action(icon: Icons.video_file_outlined, title: 'Projekt i ri', subtitle: selectedFile ?? 'Video • SRT • VTT', primary: true, onTap: _import),
+      _Action(icon: Icons.video_file_outlined, title: 'Projekt i ri', subtitle: 'Hap editorin e titrave pa kërkuar skedar', primary: true, onTap: _newSubtitleProject),
       _Action(icon: Icons.subtitles_outlined, title: 'Studio me video', subtitle: 'Zgjidh videon • shiko • sinkronizo titrat', onTap: _openVideoStudio),
       _Action(icon: Icons.file_open_outlined, title: 'Importo titra ekzistues', subtitle: 'Zgjidh një skedar SRT ose VTT', onTap: _openSubtitleStudio),
       _Action(icon: Icons.history, title: 'Vazhdo projektin e fundit', subtitle: 'Rikthe redaktimet e ruajtura automatikisht', onTap: _resumeProject),

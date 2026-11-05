@@ -55,4 +55,14 @@ void main() {
     expect(() => shiftSubtitleTiming(cues, const Duration(milliseconds: -200)), throwsFormatException);
   });
 
+  test('UTF-8 BOM and Windows newlines preserve first SRT cue', () {
+    final cues = parseSubtitles('\uFEFF1\r\n00:00:01,000 --> 00:00:02,000\r\nPërshëndetje');
+    expect(cues, hasLength(1));
+    expect(cues.single.original, 'Përshëndetje');
+    expect(cues.single.start.inMilliseconds, 1000);
+  });
+  test('Rejects timestamps with impossible seconds', () {
+    expect(() => parseSubtitles('1\n00:00:61,000 --> 00:01:02,000\nBad'), throwsFormatException);
+  });
+
 }

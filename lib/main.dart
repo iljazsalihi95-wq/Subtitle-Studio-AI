@@ -38,45 +38,6 @@ class _HomePageState extends State<HomePage> {
   String? selectedFile;
   String? selectedVideoPath;
 
-  Future<void> _import() async {
-    try {
-      final files = await FilePicker.pickFiles(type: FileType.custom, allowedExtensions: ['mp4', 'mkv', 'mov', 'webm', 'srt', 'vtt']);
-      if (!mounted || files.isEmpty) return;
-      final file = files.single;
-      if (['srt', 'vtt'].contains(file.extension?.toLowerCase()) && (file.path != null && await File(file.path!).length() > 20 * 1024 * 1024)) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Skedari i titrave është mbi 20 MB. Zgjidh një SRT/VTT më të vogël.')));
-        return;
-      }
-      if (['srt', 'vtt'].contains(file.extension?.toLowerCase())) {
-        final bytes = await file.readAsBytes();
-        if (bytes.length > 20 * 1024 * 1024) throw const FormatException('Skedari i titrave është mbi 20 MB');
-        final cues = parseSubtitles(utf8.decode(bytes));
-        if (!mounted) return;
-        if (cues.isEmpty) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Nuk u gjet asnjë titër i vlefshëm SRT/VTT. Kontrollo formatin e skedarit.')));
-          return;
-        }
-        setState(() => selectedFile = file.name);
-        await Navigator.push(context, MaterialPageRoute<void>(builder: (_) => SubtitlePreviewPage(filename: file.name, cues: cues, videoPath: selectedVideoPath)));
-        return;
-      }
-      if (!mounted) return;
-      if (file.path == null) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Nuk mund të lexohet rruga e videos.')));
-        return;
-      }
-      setState(() { selectedFile = file.name; selectedVideoPath = file.path; });
-      _newSubtitleProject();
-    } on FormatException catch (error) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Formati i titrave është i pavlefshëm: ${error.message}')));
-    } catch (_) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Skedari nuk mund të zgjidhej. Provo përsëri.')));
-    }
-  }
-
   Future<void> _openVideoStudio() async {
     try {
       final files = await FilePicker.pickFiles(type: FileType.video);

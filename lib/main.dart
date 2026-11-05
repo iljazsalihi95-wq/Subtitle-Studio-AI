@@ -361,11 +361,11 @@ class _SubtitlePreviewPageState extends State<SubtitlePreviewPage> {
                     if (mounted) setState(() => playbackSpeed = speed);
                   },
                   itemBuilder: (_) => const [
-                    PopupMenuItem(value: 0.5, child: Text('0.5×')),
-                    PopupMenuItem(value: 0.75, child: Text('0.75×')),
-                    PopupMenuItem(value: 1.0, child: Text('1×')),
-                    PopupMenuItem(value: 1.25, child: Text('1.25×')),
-                    PopupMenuItem(value: 1.5, child: Text('1.5×')),
+                    PopupMenuItem<double>(value: 0.5, child: Text('0.5×')),
+                    PopupMenuItem<double>(value: 0.75, child: Text('0.75×')),
+                    PopupMenuItem<double>(value: 1.0, child: Text('1×')),
+                    PopupMenuItem<double>(value: 1.25, child: Text('1.25×')),
+                    PopupMenuItem<double>(value: 1.5, child: Text('1.5×')),
                   ],
                   child: Padding(padding: const EdgeInsets.symmetric(horizontal: 8), child: Text('${playbackSpeed}×', style: const TextStyle(fontWeight: FontWeight.w700))),
                 ),

@@ -154,7 +154,7 @@ class _HomePageState extends State<HomePage> {
       _Action(icon: Icons.file_open_outlined, title: 'Importo titra ekzistues', subtitle: 'Zgjidh një skedar SRT ose VTT', onTap: _openSubtitleStudio),
       _Action(icon: Icons.history, title: 'Vazhdo projektin e fundit', subtitle: 'Rikthe redaktimet e ruajtura automatikisht', onTap: _resumeProject),
       _Action(icon: Icons.folder_open, title: 'Hap projektin', subtitle: 'Video dhe redaktime të ruajtura • SSAI', onTap: _openProject),
-      _Action(icon: Icons.ios_share_outlined, title: 'Eksporto', subtitle: 'Hap titrat për eksport SRT • VTT', onTap: _openSubtitleStudio),
+      _Action(icon: Icons.ios_share_outlined, title: 'Eksporto projektin e fundit', subtitle: 'Hap projektin e ruajtur për eksport SRT • VTT', onTap: _resumeProject),
       const SizedBox(height: 18), const _Status(),
     ])),
     bottomNavigationBar: NavigationBar(selectedIndex: 0, onDestinationSelected: (index) { if (index == 1) { _openVideoStudio(); } else if (index == 2) { configureAi(context); } else if (index == 3) { _openProject(); } }, destinations: const [

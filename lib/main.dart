@@ -267,6 +267,26 @@ class _SubtitlePreviewPageState extends State<SubtitlePreviewPage> {
     setState(() { timedCues[index] = merged; timedCues.removeAt(index + 1); translations[index].text = merged.translation; });
     WidgetsBinding.instance.addPostFrameCallback((_) => removed.dispose());
   }
+  Future<void> _importIntoProject() async {
+    try {
+      final files = await FilePicker.pickFiles(type: FileType.custom, allowedExtensions: ['srt','vtt']);
+      if (files.isEmpty) return;
+      final bytes = await files.single.readAsBytes();
+      if (bytes.length > 20 * 1024 * 1024) throw const FormatException('Skedari tejkalon 20 MiB.');
+      final imported = parseSubtitles(utf8.decode(bytes, allowMalformed: true));
+      if (imported.isEmpty) throw const FormatException('Nuk ka titra të vlefshëm.');
+      if (!mounted) return;
+      if (editedCues.any((c) => c.original.trim().isNotEmpty || c.translation.trim().isNotEmpty)) {
+        final replace = await showDialog<bool>(context: context, builder: (dialog) => AlertDialog(title: const Text('Zëvendëso titrat aktualë?'), content: const Text('Videoja ruhet. Ruaj projektin aktual para se të zëvendësosh redaktimet.'), actions: [TextButton(onPressed: () => Navigator.pop(dialog, false), child: const Text('Anulo')), FilledButton(onPressed: () => Navigator.pop(dialog, true), child: const Text('Zëvendëso'))]));
+        if (replace != true || !mounted) return;
+      }
+      final old = List<TextEditingController>.of(translations);
+      for (final c in old) { c.removeListener(_onTranslationChanged); }
+      setState(() { timedCues = imported; translations.clear(); translations.addAll(imported.map((c) => TextEditingController(text: c.translation)..addListener(_onTranslationChanged))); });
+      WidgetsBinding.instance.addPostFrameCallback((_) { for (final c in old) { c.dispose(); } });
+      _scheduleRecovery();
+    } catch (error) { if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Importimi i titrave dështoi: $error'))); }
+  }
   Future<void> _editTiming(int index) async {
     final cue = timedCues[index];
     final start = TextEditingController(text: '${cue.start.inMilliseconds}');
@@ -480,6 +500,7 @@ class _SubtitlePreviewPageState extends State<SubtitlePreviewPage> {
     return Scaffold(appBar: AppBar(title: Text(widget.filename), actions: [IconButton(tooltip: 'Ruaj projektin', onPressed: _saveProject, icon: const Icon(Icons.save_outlined)), TextButton(onPressed: () => _showExport(false), child: const Text('SRT')), TextButton(onPressed: () => _showExport(true), child: const Text('VTT'))]), body: SafeArea(child: Column(children: [_videoPane(), Expanded(child: ListView.builder(padding: const EdgeInsets.all(18), itemCount: visible.length + 1, itemBuilder: (context, index) {
       if (index == 0) { return Column(children: [
         OutlinedButton.icon(onPressed: _pickVideo, icon: const Icon(Icons.video_library_outlined), label: Text(videoController == null ? 'Ngarko videon përkatëse' : 'Ndrysho videon')),
+        OutlinedButton.icon(onPressed: _importIntoProject, icon: const Icon(Icons.subtitles_outlined), label: const Text('Importo SRT / VTT në video')),
         _TimelineBanner(report: report, cueCount: timedCues.length), Row(children: [Expanded(child: TextField(controller: offsetMs, keyboardType: const TextInputType.numberWithOptions(signed: true), decoration: const InputDecoration(labelText: 'Zhvendos kohën (ms)', hintText: '1500 ose -500', border: OutlineInputBorder()))), const SizedBox(width: 8), FilledButton(onPressed: _shift, child: const Text('Zbato'))]), const SizedBox(height: 14), TextField(controller: cueSearch, onChanged: (value) => setState(() => searchQuery = value.trim().toLowerCase()), decoration: const InputDecoration(prefixIcon: Icon(Icons.search), labelText: 'Kërko në titra', border: OutlineInputBorder())), SwitchListTile(title: const Text('Shfaq vetëm problemet e timeline-it'), value: onlyProblems, onChanged: (value) => setState(() => onlyProblems = value)), Row(children: [Expanded(child: Text('${visible.length} nga ${timedCues.length} titra', style: const TextStyle(color: Color(0xFF9EABBC)))), FilledButton.icon(onPressed: _addCue, icon: const Icon(Icons.add), label: const Text('Shto titër'))]), const SizedBox(height: 16)]); }
       final cueIndex = visible[index - 1]; final cue = timedCues[cueIndex];
       String stamp(Duration value) => value.toString().split('.').first;

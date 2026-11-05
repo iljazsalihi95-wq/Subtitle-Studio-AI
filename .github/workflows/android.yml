@@ -85,7 +85,7 @@ jobs:
           import re
           from pathlib import Path
           text = Path('/tmp/s23-badging.txt').read_text()
-          match = re.search(r"sdkVersion:'(\\d+)'", text)
+          match = re.search(r"sdkVersion:'(\d+)'", text)
           assert match, 'Missing minSdkVersion in APK'
           minimum = int(match.group(1))
           assert minimum <= 34, f'APK requires Android API {minimum}, higher than Galaxy S23 Android 14'

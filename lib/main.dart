@@ -212,6 +212,35 @@ class _SubtitlePreviewPageState extends State<SubtitlePreviewPage> {
   double playbackSpeed = 1.0;
   String? projectVideoPath;
   bool aiBusy = false;
+  bool cancelTranslation = false;
+  int translatedCount = 0;
+
+  Future<void> _translateProject() async {
+    if (aiBusy || !await configureAi(context) || !mounted) return;
+    final targets = List<TextEditingController>.of(translations);
+    final sources = [for (var i = 0; i < timedCues.length; i++) timedCues[i].original.trim().isNotEmpty ? timedCues[i].original : translations[i].text];
+    setState(() { aiBusy = true; cancelTranslation = false; translatedCount = 0; });
+    try {
+      for (var i = 0; i < targets.length; i++) {
+        if (!mounted || cancelTranslation) break;
+        if (sources[i].trim().isEmpty) continue;
+        final before = targets[i].text;
+        final result = await aiText(sources[i], operation: 'translate');
+        if (!mounted || cancelTranslation) break;
+        // Do not overwrite edits made while the request was running.
+        if (translations.contains(targets[i]) && targets[i].text == before) {
+          targets[i].text = result;
+          setState(() => translatedCount++);
+          await _recoverableSave();
+        }
+      }
+    } catch (error) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Përkthimi u ndal: $error. Rezultatet e përfunduara janë ruajtur.')));
+    } finally {
+      if (mounted) setState(() => aiBusy = false);
+    }
+  }
+
   Timer? recoveryTimer;
   Future<void> _recoverableSave() async {
     try { final snapshot = encodeProject(SubtitleProject(title: widget.filename, cues: editedCues, videoPath: projectVideoPath)); final root = await getApplicationDocumentsDirectory(); final file = File('${root.path}/last_project.ssai'); final temp = File('${file.path}.tmp'); await temp.writeAsString(snapshot, flush: true); await temp.rename(file.path); } catch (_) { if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Ruajtja automatike dështoi. Përdor Ruaj projektin.'))); }
@@ -349,6 +378,10 @@ class _SubtitlePreviewPageState extends State<SubtitlePreviewPage> {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Shko më herët në video për të shtuar titër.')));
       return;
     }
+    if (timedCues.any((cue) => cue.start <= start && start < cue.end)) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Ky pozicion ka tashmë titër. Përdor Ndaj ose zgjidh një hapësirë bosh.')));
+      return;
+    }
     final insertAt = timedCues.indexWhere((cue) => cue.start > start);
     final index = insertAt < 0 ? timedCues.length : insertAt;
     var end = start + const Duration(seconds: 3);
@@ -377,6 +410,11 @@ class _SubtitlePreviewPageState extends State<SubtitlePreviewPage> {
     final newEnd = start ? cue.end : position;
     if (newEnd <= newStart) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Fundi duhet të jetë pas fillimit të titrit.')));
+      return;
+    }
+    if ((index > 0 && newStart < timedCues[index - 1].end) ||
+        (index + 1 < timedCues.length && newEnd > timedCues[index + 1].start)) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Koha mbivendoset me titrin fqinj.')));
       return;
     }
     setState(() => timedCues[index] = SubtitleCue(
@@ -504,6 +542,11 @@ class _SubtitlePreviewPageState extends State<SubtitlePreviewPage> {
       if (index == 0) { return Column(children: [
         OutlinedButton.icon(onPressed: _pickVideo, icon: const Icon(Icons.video_library_outlined), label: Text(videoController == null ? 'Ngarko videon përkatëse' : 'Ndrysho videon')),
         OutlinedButton.icon(onPressed: _importIntoProject, icon: const Icon(Icons.subtitles_outlined), label: const Text('Importo SRT / VTT në video')),
+        Wrap(spacing: 8, crossAxisAlignment: WrapCrossAlignment.center, children: [
+          FilledButton.icon(onPressed: aiBusy ? null : _translateProject, icon: const Icon(Icons.translate), label: const Text('Përkthe gjithë projektin')),
+          if (aiBusy) TextButton.icon(onPressed: () => setState(() => cancelTranslation = true), icon: const Icon(Icons.stop), label: const Text('Ndalo')),
+          if (aiBusy || translatedCount > 0) Text('$translatedCount titra të përkthyer'),
+        ]),
         _TimelineBanner(report: report, cueCount: timedCues.length), Row(children: [Expanded(child: TextField(controller: offsetMs, keyboardType: const TextInputType.numberWithOptions(signed: true), decoration: const InputDecoration(labelText: 'Zhvendos kohën (ms)', hintText: '1500 ose -500', border: OutlineInputBorder()))), const SizedBox(width: 8), FilledButton(onPressed: _shift, child: const Text('Zbato'))]), const SizedBox(height: 14), TextField(controller: cueSearch, onChanged: (value) => setState(() => searchQuery = value.trim().toLowerCase()), decoration: const InputDecoration(prefixIcon: Icon(Icons.search), labelText: 'Kërko në titra', border: OutlineInputBorder())), SwitchListTile(title: const Text('Shfaq vetëm problemet e timeline-it'), value: onlyProblems, onChanged: (value) => setState(() => onlyProblems = value)), Row(children: [Expanded(child: Text('${visible.length} nga ${timedCues.length} titra', style: const TextStyle(color: Color(0xFF9EABBC)))), FilledButton.icon(onPressed: _addCue, icon: const Icon(Icons.add), label: const Text('Shto titër'))]), const SizedBox(height: 16)]); }
       final cueIndex = visible[index - 1]; final cue = timedCues[cueIndex];
       String stamp(Duration value) => value.toString().split('.').first;

@@ -229,7 +229,7 @@ class _SubtitlePreviewPageState extends State<SubtitlePreviewPage> {
           projectVideoPath = copy.path;
         }
       }
-      final result = await FilePicker.saveFile(dialogTitle: 'Ruaj projektin', fileName: '${widget.filename}.ssai', bytes: Uint8List.fromList(utf8.encode(encodeProject(SubtitleProject(title: widget.filename, cues: editedCues, videoPath: projectVideoPath)))));
+      final result = await FilePicker.saveFile(dialogTitle: 'Ruaj projektin', fileName: widget.filename.toLowerCase().endsWith('.ssai') ? widget.filename : '${widget.filename}.ssai', bytes: Uint8List.fromList(utf8.encode(encodeProject(SubtitleProject(title: widget.filename, cues: editedCues, videoPath: projectVideoPath)))));
       if (mounted && result != null) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Projekti u ruajt. Mbaje edhe videon në pajisje.')));
     } catch (_) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Ruajtja e projektit dështoi.')));
@@ -237,7 +237,7 @@ class _SubtitlePreviewPageState extends State<SubtitlePreviewPage> {
   }
   Future<void> _translate(int index) async {
     if (aiBusy) return;
-    final source = translations[index].text.trim().isEmpty ? timedCues[index].original : translations[index].text;
+    final source = timedCues[index].original.trim().isNotEmpty ? timedCues[index].original : translations[index].text;
     if (source.trim().isEmpty) return;
     if (!await configureAi(context) || !mounted) return;
     setState(() => aiBusy = true);

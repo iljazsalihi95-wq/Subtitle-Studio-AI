@@ -22,6 +22,18 @@ jobs:
           s = p.read_text().replace('compileSdk = flutter.compileSdkVersion', 'compileSdk = 36')
           p.write_text(s)
           PY
+      - name: Set application label and preserve existing Android identity
+        run: |
+          python3 - <<'PYCODE'
+          from pathlib import Path
+          import re
+          manifest = Path('android/app/src/main/AndroidManifest.xml')
+          text = manifest.read_text()
+          text = re.sub(r'android:label="[^"]*"', 'android:label="Subtitle Studio AI"', text, count=1)
+          manifest.write_text(text)
+          gradle = Path('android/app/build.gradle.kts').read_text()
+          assert 'applicationId = "com.example.subtitle_studio_ai"' in gradle, 'Android identity changed unexpectedly'
+          PYCODE
       - name: Check Android package identity for update compatibility
         run: |
           grep -n 'applicationId' android/app/build.gradle.kts
@@ -70,10 +82,10 @@ jobs:
       - run: flutter pub get
       - run: flutter analyze
       - run: flutter test
-      - name: Build universal debug APK
-        run: flutter build apk --debug
       - name: Build Samsung S23 arm64 APK
-        run: flutter build apk --debug --split-per-abi
+        run: flutter build apk --debug --target-platform android-arm64 --split-per-abi
+      - name: Verify APK launcher pixels, ARM64 runtime and bundled illustrations
+        run: python3 scripts/verify_apk_resources.py
       - name: Verify compiled launcher resources
         run: |
           set -e
@@ -97,7 +109,7 @@ jobs:
           AAPT=$(find "$ANDROID_HOME/build-tools" -maxdepth 2 -type f -name aapt | sort -V | tail -1)
           test -x "$APKSIGNER"
           test -x "$AAPT"
-          "$APKSIGNER" verify --verbose "$APK"
+          "$APKSIGNER" verify --verbose --print-certs "$APK"
           "$AAPT" dump badging "$APK" > /tmp/s23-badging.txt
           grep -q "^package: name=" /tmp/s23-badging.txt
           python3 - <<'PY'
@@ -114,20 +126,12 @@ jobs:
         run: |
           set -e
           OUT=build/app/outputs/flutter-apk
-          test -s "$OUT/app-debug.apk"
           test -s "$OUT/app-arm64-v8a-debug.apk"
           unzip -l "$OUT/app-arm64-v8a-debug.apk" | grep -q 'lib/arm64-v8a/libflutter.so'
           cd "$OUT"
-          sha256sum app-debug.apk > app-debug.apk.sha256
           sha256sum app-arm64-v8a-debug.apk > app-arm64-v8a-debug.apk.sha256
-          ls -lh app-debug.apk app-arm64-v8a-debug.apk
+          ls -lh app-arm64-v8a-debug.apk
           echo 'Samsung S23 arm64-v8a APK verified'
-      - uses: actions/upload-artifact@v4
-        with:
-          name: android-debug-apk
-          path: |
-            build/app/outputs/flutter-apk/app-debug.apk
-            build/app/outputs/flutter-apk/app-debug.apk.sha256
       - uses: actions/upload-artifact@v4
         with:
           name: samsung-s23-arm64-debug-apk

@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:async';
 import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
@@ -123,6 +124,10 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
+  Future<void> _resumeProject() async {
+    try { final root = await getApplicationDocumentsDirectory(); final project = decodeProject(await File('${root.path}/last_project.ssai').readAsString()); if (!mounted) return; await Navigator.push(context, MaterialPageRoute<void>(builder: (_) => SubtitlePreviewPage(filename: project.title, cues: project.cues, videoPath: project.videoPath))); }
+    catch (_) { if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Nuk ka projekt automatik të ruajtur në këtë pajisje.'))); }
+  }
   Future<void> _openProject() async {
     try {
       final files = await FilePicker.pickFiles(type: FileType.custom, allowedExtensions: ['ssai']);
@@ -147,6 +152,7 @@ class _HomePageState extends State<HomePage> {
       _Action(icon: Icons.video_file_outlined, title: 'Projekt i ri', subtitle: selectedFile ?? 'Video • SRT • VTT', primary: true, onTap: _import),
       _Action(icon: Icons.subtitles_outlined, title: 'Studio me video', subtitle: 'Zgjidh videon • shiko • sinkronizo titrat', onTap: _openVideoStudio),
       _Action(icon: Icons.file_open_outlined, title: 'Importo titra ekzistues', subtitle: 'Zgjidh një skedar SRT ose VTT', onTap: _openSubtitleStudio),
+      _Action(icon: Icons.history, title: 'Vazhdo projektin e fundit', subtitle: 'Rikthe redaktimet e ruajtura automatikisht', onTap: _resumeProject),
       _Action(icon: Icons.folder_open, title: 'Hap projektin', subtitle: 'Video dhe redaktime të ruajtura • SSAI', onTap: _openProject),
       _Action(icon: Icons.ios_share_outlined, title: 'Eksporto', subtitle: 'Hap titrat për eksport SRT • VTT', onTap: _openSubtitleStudio),
       const SizedBox(height: 18), const _Status(),
@@ -203,6 +209,12 @@ class _SubtitlePreviewPageState extends State<SubtitlePreviewPage> {
   double playbackSpeed = 1.0;
   String? projectVideoPath;
   bool aiBusy = false;
+  Timer? recoveryTimer;
+  Future<void> _recoverableSave() async {
+    try { final snapshot = encodeProject(SubtitleProject(title: widget.filename, cues: editedCues, videoPath: projectVideoPath)); final root = await getApplicationDocumentsDirectory(); final file = File('${root.path}/last_project.ssai'); final temp = File('${file.path}.tmp'); await temp.writeAsString(snapshot, flush: true); await temp.rename(file.path); } catch (_) { if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Ruajtja automatike dështoi. Përdor Ruaj projektin.'))); }
+  }
+  void _scheduleRecovery() { recoveryTimer?.cancel(); recoveryTimer = Timer(const Duration(milliseconds: 400), _recoverableSave); }
+
   Future<void> _saveProject() async {
     try {
       if (projectVideoPath != null) {
@@ -235,6 +247,7 @@ class _SubtitlePreviewPageState extends State<SubtitlePreviewPage> {
     } finally { if (mounted) setState(() => aiBusy = false); }
   }
   void _split(int index) {
+    _scheduleRecovery();
     final cue = editedCues[index];
     final at = videoController?.value.position ?? Duration(milliseconds: (cue.start.inMilliseconds + cue.end.inMilliseconds) ~/ 2);
     try {
@@ -247,11 +260,19 @@ class _SubtitlePreviewPageState extends State<SubtitlePreviewPage> {
     }
   }
   void _merge(int index) {
+    _scheduleRecovery();
     if (index + 1 >= timedCues.length) return;
     final merged = mergeCues(editedCues[index], editedCues[index + 1]);
     final removed = translations.removeAt(index + 1);
     setState(() { timedCues[index] = merged; timedCues.removeAt(index + 1); translations[index].text = merged.translation; });
     WidgetsBinding.instance.addPostFrameCallback((_) => removed.dispose());
+  }
+  Future<void> _editTiming(int index) async {
+    final cue = timedCues[index];
+    final start = TextEditingController(text: '${cue.start.inMilliseconds}');
+    final end = TextEditingController(text: '${cue.end.inMilliseconds}');
+    final result = await showDialog<List<int>>(context: context, builder: (dialog) => AlertDialog(title: const Text('Koha e titrit (ms)'), content: Column(mainAxisSize: MainAxisSize.min, children: [TextField(controller: start, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Fillimi në milisekonda')), TextField(controller: end, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Fundi në milisekonda'))]), actions: [TextButton(onPressed: () => Navigator.pop(dialog), child: const Text('Anulo')), FilledButton(onPressed: () { final a = int.tryParse(start.text); final b = int.tryParse(end.text); if (a != null && b != null && a >= 0 && b > a) Navigator.pop(dialog, [a,b]); }, child: const Text('Zbato'))]));
+    if (result != null && mounted) { setState(() => timedCues[index] = SubtitleCue(start: Duration(milliseconds: result[0]), end: Duration(milliseconds: result[1]), original: cue.original, translation: translations[index].text)); _scheduleRecovery(); }
   }
   Future<void> _fullscreen() async {
     final player = videoController;
@@ -283,6 +304,7 @@ class _SubtitlePreviewPageState extends State<SubtitlePreviewPage> {
   }
   bool onlyProblems = false;
   void _deleteCue(int index) {
+    _scheduleRecovery();
     if (timedCues.length <= 1) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Projekti duhet të ketë të paktën një titër.')));
       return;
@@ -296,6 +318,7 @@ class _SubtitlePreviewPageState extends State<SubtitlePreviewPage> {
     WidgetsBinding.instance.addPostFrameCallback((_) => removed.dispose());
   }
   void _addCue() {
+    _scheduleRecovery();
     final position = videoController?.value.position;
     final start = position ?? (timedCues.isEmpty ? Duration.zero : timedCues.last.end);
     final videoDuration = videoController?.value.duration;
@@ -322,6 +345,7 @@ class _SubtitlePreviewPageState extends State<SubtitlePreviewPage> {
     });
   }
   void _markCueBoundary(int index, {required bool start}) {
+    _scheduleRecovery();
     final player = videoController;
     if (player == null || !player.value.isInitialized) return;
     final position = player.value.position;
@@ -338,14 +362,15 @@ class _SubtitlePreviewPageState extends State<SubtitlePreviewPage> {
     ));
   }
   void _shift() {
+    _scheduleRecovery();
     final value = int.tryParse(offsetMs.text.trim());
     if (value == null) { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Shkruaj milisekonda, p.sh. 1500 ose -500.'))); return; }
     try { setState(() => timedCues = shiftSubtitleTiming(timedCues, Duration(milliseconds: value))); }
     on FormatException { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Koha nuk mund të jetë negative.'))); }
   }
-  @override void initState() { super.initState(); if (widget.videoPath != null) { WidgetsBinding.instance.addPostFrameCallback((_) { if (mounted) _loadVideo(widget.videoPath!); }); } timedCues = List.of(widget.cues); translations = timedCues.map((cue) => TextEditingController(text: cue.translation)).toList(); for (final controller in translations) { controller.addListener(_onTranslationChanged); } }
-  void _onTranslationChanged() { if (mounted) setState(() {}); }
-  @override void dispose() { for (final controller in translations) { controller.dispose(); } offsetMs.dispose(); cueSearch.dispose(); videoController?.dispose(); super.dispose(); }
+  @override void initState() { super.initState(); if (widget.videoPath != null) { WidgetsBinding.instance.addPostFrameCallback((_) { if (mounted) _loadVideo(widget.videoPath!); }); } projectVideoPath = widget.videoPath; timedCues = List.of(widget.cues); translations = timedCues.map((cue) => TextEditingController(text: cue.translation)).toList(); for (final controller in translations) { controller.addListener(_onTranslationChanged); } }
+  void _onTranslationChanged() { if (mounted) { setState(() {}); _scheduleRecovery(); } }
+  @override void dispose() { if (recoveryTimer?.isActive ?? false) { recoveryTimer?.cancel(); _recoverableSave(); } for (final controller in translations) { controller.dispose(); } offsetMs.dispose(); cueSearch.dispose(); videoController?.dispose(); super.dispose(); }
   List<SubtitleCue> get editedCues => [for (var i = 0; i < timedCues.length; i++) timedCues[i].translated(translations[i].text)];
   void _showExport(bool vtt) {
     final output = vtt ? exportVtt(editedCues) : exportSrt(editedCues);
@@ -389,14 +414,9 @@ class _SubtitlePreviewPageState extends State<SubtitlePreviewPage> {
       ],
     ));
   }
-  @override
-  Widget build(BuildContext context) {
-    final report = validateTimeline(editedCues);
-    final visible = <int>[for (var i = 0; i < timedCues.length; i++) if ((!onlyProblems || report.overlapIndexes.contains(i) || report.emptyIndexes.contains(i)) && (searchQuery.isEmpty || timedCues[i].original.toLowerCase().contains(searchQuery) || translations[i].text.toLowerCase().contains(searchQuery))) i];
-    return Scaffold(appBar: AppBar(title: Text(widget.filename), actions: [IconButton(tooltip: 'Ruaj projektin', onPressed: _saveProject, icon: const Icon(Icons.save_outlined)), TextButton(onPressed: () => _showExport(false), child: const Text('SRT')), TextButton(onPressed: () => _showExport(true), child: const Text('VTT'))]), body: SafeArea(child: ListView.builder(padding: const EdgeInsets.all(18), itemCount: visible.length + 1, itemBuilder: (context, index) {
-      if (index == 0) { return Column(children: [
+  Widget _videoPane() => Column(mainAxisSize: MainAxisSize.min, children: [
         if (videoController != null && videoController!.value.isInitialized) ...[
-          AspectRatio(aspectRatio: videoController!.value.aspectRatio, child: Stack(fit: StackFit.expand, children: [
+          SizedBox(height: MediaQuery.sizeOf(context).height * .28, child: Center(child: AspectRatio(aspectRatio: videoController!.value.aspectRatio, child: Stack(fit: StackFit.expand, children: [
             VideoPlayer(videoController!),
             ValueListenableBuilder<VideoPlayerValue>(valueListenable: videoController!, builder: (context, value, _) {
               final current = value.position;
@@ -407,7 +427,7 @@ class _SubtitlePreviewPageState extends State<SubtitlePreviewPage> {
               if (text.trim().isEmpty) return const SizedBox.shrink();
               return Align(alignment: Alignment.bottomCenter, child: Padding(padding: const EdgeInsets.all(12), child: DecoratedBox(decoration: BoxDecoration(color: Colors.black87, borderRadius: BorderRadius.circular(8)), child: Padding(padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7), child: Text(text, textAlign: TextAlign.center, style: const TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w600))))));
             }),
-          ])),
+          ])))),
           VideoProgressIndicator(videoController!, allowScrubbing: true, padding: const EdgeInsets.symmetric(vertical: 12)),
           ValueListenableBuilder<VideoPlayerValue>(
             valueListenable: videoController!,
@@ -447,12 +467,19 @@ class _SubtitlePreviewPageState extends State<SubtitlePreviewPage> {
             },
           ),
         ] else if (videoLoading) const LinearProgressIndicator(),
-        OutlinedButton.icon(onPressed: _pickVideo, icon: const Icon(Icons.video_library_outlined), label: Text(videoController == null ? 'Ngarko videon përkatëse' : 'Ndrysho videon')),
         if (videoController != null && videoController!.value.isInitialized)
           SizedBox(height: 62, child: SingleChildScrollView(scrollDirection: Axis.horizontal, child: SizedBox(width: (videoController!.value.duration.inSeconds * 12.0).clamp(340.0, 60000.0), child: LayoutBuilder(builder: (_, box) {
             final total = videoController!.value.duration.inMilliseconds;
             return Stack(children: [for (var i = 0; i < timedCues.length; i++) Positioned(left: total == 0 ? 0 : box.maxWidth * timedCues[i].start.inMilliseconds / total, width: total == 0 ? 30 : (box.maxWidth * (timedCues[i].end - timedCues[i].start).inMilliseconds / total).clamp(12.0, box.maxWidth), top: 8, bottom: 8, child: GestureDetector(onTap: () => videoController!.seekTo(timedCues[i].start), child: Container(margin: const EdgeInsets.only(right: 1), decoration: BoxDecoration(color: const Color(0xFF244978), border: Border.all(color: const Color(0xFFE8C170)), borderRadius: BorderRadius.circular(5)), child: Text('${i + 1}', overflow: TextOverflow.clip)))), ValueListenableBuilder<VideoPlayerValue>(valueListenable: videoController!, builder: (_, value, __) => Positioned(left: total == 0 ? 0 : box.maxWidth * value.position.inMilliseconds / total, top: 0, bottom: 0, child: Container(width: 2, color: Colors.white)))]);
           })))),
+  ]);
+  @override
+  Widget build(BuildContext context) {
+    final report = validateTimeline(editedCues);
+    final visible = <int>[for (var i = 0; i < timedCues.length; i++) if ((!onlyProblems || report.overlapIndexes.contains(i) || report.emptyIndexes.contains(i)) && (searchQuery.isEmpty || timedCues[i].original.toLowerCase().contains(searchQuery) || translations[i].text.toLowerCase().contains(searchQuery))) i];
+    return Scaffold(appBar: AppBar(title: Text(widget.filename), actions: [IconButton(tooltip: 'Ruaj projektin', onPressed: _saveProject, icon: const Icon(Icons.save_outlined)), TextButton(onPressed: () => _showExport(false), child: const Text('SRT')), TextButton(onPressed: () => _showExport(true), child: const Text('VTT'))]), body: SafeArea(child: Column(children: [_videoPane(), Expanded(child: ListView.builder(padding: const EdgeInsets.all(18), itemCount: visible.length + 1, itemBuilder: (context, index) {
+      if (index == 0) { return Column(children: [
+        OutlinedButton.icon(onPressed: _pickVideo, icon: const Icon(Icons.video_library_outlined), label: Text(videoController == null ? 'Ngarko videon përkatëse' : 'Ndrysho videon')),
         _TimelineBanner(report: report, cueCount: timedCues.length), Row(children: [Expanded(child: TextField(controller: offsetMs, keyboardType: const TextInputType.numberWithOptions(signed: true), decoration: const InputDecoration(labelText: 'Zhvendos kohën (ms)', hintText: '1500 ose -500', border: OutlineInputBorder()))), const SizedBox(width: 8), FilledButton(onPressed: _shift, child: const Text('Zbato'))]), const SizedBox(height: 14), TextField(controller: cueSearch, onChanged: (value) => setState(() => searchQuery = value.trim().toLowerCase()), decoration: const InputDecoration(prefixIcon: Icon(Icons.search), labelText: 'Kërko në titra', border: OutlineInputBorder())), SwitchListTile(title: const Text('Shfaq vetëm problemet e timeline-it'), value: onlyProblems, onChanged: (value) => setState(() => onlyProblems = value)), Row(children: [Expanded(child: Text('${visible.length} nga ${timedCues.length} titra', style: const TextStyle(color: Color(0xFF9EABBC)))), FilledButton.icon(onPressed: _addCue, icon: const Icon(Icons.add), label: const Text('Shto titër'))]), const SizedBox(height: 16)]); }
       final cueIndex = visible[index - 1]; final cue = timedCues[cueIndex];
       String stamp(Duration value) => value.toString().split('.').first;
@@ -475,11 +502,11 @@ class _SubtitlePreviewPageState extends State<SubtitlePreviewPage> {
           icon: const Icon(Icons.content_copy_outlined, size: 17),
           label: const Text('Kopjo origjinalin në redaktim'),
         )),
-        Wrap(spacing: 8, children: [TextButton.icon(onPressed: () => _split(cueIndex), icon: const Icon(Icons.call_split), label: const Text('Ndaj')), TextButton.icon(onPressed: cueIndex + 1 < timedCues.length ? () => _merge(cueIndex) : null, icon: const Icon(Icons.merge), label: const Text('Bashko')), TextButton.icon(onPressed: aiBusy ? null : () => _translate(cueIndex), icon: const Icon(Icons.translate), label: const Text('Përkthe AI'))]),
+        Wrap(spacing: 8, children: [TextButton.icon(onPressed: () => _editTiming(cueIndex), icon: const Icon(Icons.timer_outlined), label: const Text('Koha')), TextButton.icon(onPressed: () => _split(cueIndex), icon: const Icon(Icons.call_split), label: const Text('Ndaj')), TextButton.icon(onPressed: cueIndex + 1 < timedCues.length ? () => _merge(cueIndex) : null, icon: const Icon(Icons.merge), label: const Text('Bashko')), TextButton.icon(onPressed: aiBusy ? null : () => _translate(cueIndex), icon: const Icon(Icons.translate), label: const Text('Përkthe AI'))]),
         const SizedBox(height: 8),
         TextField(controller: translations[cueIndex], maxLines: null, decoration: const InputDecoration(labelText: 'Teksti i redaktuar / përkthimi shqip', border: OutlineInputBorder())),
       ])));
-    })));
+    }))])));
   }
 }
 

@@ -48,6 +48,23 @@ jobs:
                   assert icon.size == (size, size), f'Invalid icon size: {path}'
           print('All five branded Android launcher icons verified')
           PY
+      - name: Reject generic Android launcher and verify branded artwork
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          from PIL import Image
+          base = Path('android/app/src/main/res')
+          for density in ('mdpi','hdpi','xhdpi','xxhdpi','xxxhdpi'):
+              p = base / f'mipmap-{density}' / 'ic_launcher.png'
+              with Image.open(p) as image:
+                  rgb = image.convert('RGB')
+                  pixels = list(rgb.getdata())
+                  assert len(set(pixels)) > 12, f'Generic/blank icon: {p}'
+                  gold = sum(1 for r,g,b in pixels if r > 130 and g > 90 and b < 185)
+                  assert gold > len(pixels) // 100, f'Branded gold artwork absent: {p}'
+          assert not (base / 'mipmap-anydpi-v26/ic_launcher.xml').exists(), 'Default adaptive icon overrides artwork'
+          print('Verified branded icon artwork in all five launcher densities')
+          PY
       - run: flutter pub get
       - run: flutter analyze
       - run: flutter test

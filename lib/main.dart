@@ -367,7 +367,7 @@ class _SubtitlePreviewPageState extends State<SubtitlePreviewPage> {
                     PopupMenuItem<double>(value: 1.25, child: Text('1.25×')),
                     PopupMenuItem<double>(value: 1.5, child: Text('1.5×')),
                   ],
-                  child: Padding(padding: const EdgeInsets.symmetric(horizontal: 8), child: Text('${playbackSpeed}×', style: const TextStyle(fontWeight: FontWeight.w700))),
+                  child: Padding(padding: const EdgeInsets.symmetric(horizontal: 8), child: Text('$playbackSpeed×', style: const TextStyle(fontWeight: FontWeight.w700))),
                 ),
                 IconButton(tooltip: '5 sekonda përpara', onPressed: () => jump(5), icon: const Icon(Icons.forward_5)),
                 Expanded(child: Text('${clock(value.position)} / ${clock(value.duration)}', textAlign: TextAlign.end, style: const TextStyle(fontSize: 12))),

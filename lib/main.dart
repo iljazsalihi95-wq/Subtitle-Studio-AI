@@ -187,6 +187,7 @@ class _SubtitlePreviewPageState extends State<SubtitlePreviewPage> {
   String searchQuery = '';
   VideoPlayerController? videoController;
   bool videoLoading = false;
+  double playbackSpeed = 1.0;
   Future<void> _pickVideo() async {
     final files = await FilePicker.pickFiles(type: FileType.video);
     if (!mounted || files.isEmpty || files.single.path == null) return;
@@ -197,6 +198,7 @@ class _SubtitlePreviewPageState extends State<SubtitlePreviewPage> {
     final next = VideoPlayerController.file(File(path));
     try {
       await next.initialize();
+      await next.setPlaybackSpeed(playbackSpeed);
       if (!mounted) { await next.dispose(); return; }
       final old = videoController;
       setState(() { videoController = next; videoLoading = false; });
@@ -351,6 +353,22 @@ class _SubtitlePreviewPageState extends State<SubtitlePreviewPage> {
                   if (value.isPlaying) { await videoController!.pause(); }
                   else { if (value.position >= value.duration) await videoController!.seekTo(Duration.zero); await videoController!.play(); }
                 }, icon: Icon(value.isPlaying ? Icons.pause_circle : Icons.play_circle)),
+                PopupMenuButton<double>(
+                  tooltip: 'Shpejtësia e videos',
+                  initialValue: playbackSpeed,
+                  onSelected: (speed) async {
+                    await videoController?.setPlaybackSpeed(speed);
+                    if (mounted) setState(() => playbackSpeed = speed);
+                  },
+                  itemBuilder: (_) => const [
+                    PopupMenuItem(value: 0.5, child: Text('0.5×')),
+                    PopupMenuItem(value: 0.75, child: Text('0.75×')),
+                    PopupMenuItem(value: 1.0, child: Text('1×')),
+                    PopupMenuItem(value: 1.25, child: Text('1.25×')),
+                    PopupMenuItem(value: 1.5, child: Text('1.5×')),
+                  ],
+                  child: Padding(padding: const EdgeInsets.symmetric(horizontal: 8), child: Text('${playbackSpeed}×', style: const TextStyle(fontWeight: FontWeight.w700))),
+                ),
                 IconButton(tooltip: '5 sekonda përpara', onPressed: () => jump(5), icon: const Icon(Icons.forward_5)),
                 Expanded(child: Text('${clock(value.position)} / ${clock(value.duration)}', textAlign: TextAlign.end, style: const TextStyle(fontSize: 12))),
               ]);

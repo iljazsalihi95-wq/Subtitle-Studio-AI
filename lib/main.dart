@@ -51,7 +51,7 @@ class _HomePageState extends State<HomePage> {
       if (['srt', 'vtt'].contains(file.extension?.toLowerCase())) {
         final bytes = await file.readAsBytes();
         if (bytes.length > 20 * 1024 * 1024) throw const FormatException('Skedari i titrave është mbi 20 MB');
-        final cues = parseSubtitles(utf8.decode(bytes, allowMalformed: true));
+        final cues = parseSubtitles(utf8.decode(bytes));
         if (!mounted) return;
         if (cues.isEmpty) {
           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Nuk u gjet asnjë titër i vlefshëm SRT/VTT. Kontrollo formatin e skedarit.')));
@@ -114,7 +114,7 @@ class _HomePageState extends State<HomePage> {
       }
       final bytes = await file.readAsBytes();
       if (bytes.length > 20 * 1024 * 1024) throw const FormatException('Skedari i titrave është mbi 20 MB');
-      final cues = parseSubtitles(utf8.decode(bytes, allowMalformed: true));
+      final cues = parseSubtitles(utf8.decode(bytes));
       if (!mounted) return;
       if (cues.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Nuk u gjet asnjë titër i vlefshëm SRT/VTT.')));
@@ -276,7 +276,7 @@ class _SubtitlePreviewPageState extends State<SubtitlePreviewPage> {
       if (files.isEmpty) return;
       final bytes = await files.single.readAsBytes();
       if (bytes.length > 20 * 1024 * 1024) throw const FormatException('Skedari tejkalon 20 MiB.');
-      final imported = parseSubtitles(utf8.decode(bytes, allowMalformed: true));
+      final imported = parseSubtitles(utf8.decode(bytes));
       if (imported.isEmpty) throw const FormatException('Nuk ka titra të vlefshëm.');
       if (!mounted) return;
       if (editedCues.any((c) => c.original.trim().isNotEmpty || c.translation.trim().isNotEmpty)) {

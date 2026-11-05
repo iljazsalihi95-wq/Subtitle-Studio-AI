@@ -69,6 +69,28 @@ jobs:
           grep -q "^application-icon-" /tmp/compiled-apk-badging.txt
           grep -q "^package: name=" /tmp/compiled-apk-badging.txt
           echo "Compiled APK launcher resource and package metadata verified"
+      - name: Verify Samsung S23 APK signing and Android compatibility
+        run: |
+          set -euo pipefail
+          APK=build/app/outputs/flutter-apk/app-arm64-v8a-debug.apk
+          test -s "$APK"
+          APKSIGNER=$(find "$ANDROID_HOME/build-tools" -maxdepth 2 -type f -name apksigner | sort -V | tail -1)
+          AAPT=$(find "$ANDROID_HOME/build-tools" -maxdepth 2 -type f -name aapt | sort -V | tail -1)
+          test -x "$APKSIGNER"
+          test -x "$AAPT"
+          "$APKSIGNER" verify --verbose "$APK"
+          "$AAPT" dump badging "$APK" > /tmp/s23-badging.txt
+          grep -q "^package: name=" /tmp/s23-badging.txt
+          python3 - <<'PY'
+          import re
+          from pathlib import Path
+          text = Path('/tmp/s23-badging.txt').read_text()
+          match = re.search(r"sdkVersion:'(\\d+)'", text)
+          assert match, 'Missing minSdkVersion in APK'
+          minimum = int(match.group(1))
+          assert minimum <= 34, f'APK requires Android API {minimum}, higher than Galaxy S23 Android 14'
+          print(f'APK signed and minSdk={minimum}; compatible with Android 14 API 34')
+          PY
       - name: Verify APKs and produce SHA-256 checksums
         run: |
           set -e

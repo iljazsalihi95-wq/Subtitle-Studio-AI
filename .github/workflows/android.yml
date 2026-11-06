@@ -130,6 +130,8 @@ jobs:
           "$APKSIGNER" verify --verbose --print-certs "$APK"
           "$AAPT" dump badging "$APK" > /tmp/s23-badging.txt
           grep -q "^package: name=" /tmp/s23-badging.txt
+          grep -Fq "package: name='com.example.subtitle_studio_ai'" /tmp/s23-badging.txt
+          grep -Fq "native-code: 'arm64-v8a'" /tmp/s23-badging.txt
           python3 - <<'PY'
           import re
           from pathlib import Path

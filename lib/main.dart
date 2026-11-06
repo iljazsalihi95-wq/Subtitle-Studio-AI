@@ -234,7 +234,10 @@ class _SubtitlePreviewPageState extends State<SubtitlePreviewPage> {
     final controller = translations[index];
     try {
       final text = await aiText(source, operation: 'translate');
-      if (mounted && translations.contains(controller)) controller.text = text;
+      if (mounted && translations.contains(controller)) {
+        controller.text = text;
+        await _recoverableSave();
+      }
     } catch (error) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$error')));
     } finally { if (mounted) setState(() => aiBusy = false); }

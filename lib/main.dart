@@ -290,10 +290,67 @@ class _SubtitlePreviewPageState extends State<SubtitlePreviewPage> {
     final result = await showDialog<List<int>>(context: context, builder: (dialog) => AlertDialog(title: const Text('Koha e titrit (ms)'), content: Column(mainAxisSize: MainAxisSize.min, children: [TextField(controller: start, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Fillimi në milisekonda')), TextField(controller: end, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Fundi në milisekonda'))]), actions: [TextButton(onPressed: () => Navigator.pop(dialog), child: const Text('Anulo')), FilledButton(onPressed: () { final a = int.tryParse(start.text); final b = int.tryParse(end.text); if (a != null && b != null && a >= 0 && b > a) Navigator.pop(dialog, [a,b]); }, child: const Text('Zbato'))]));
     if (result != null && mounted) { setState(() => timedCues[index] = SubtitleCue(start: Duration(milliseconds: result[0]), end: Duration(milliseconds: result[1]), original: cue.original, translation: translations[index].text)); _scheduleRecovery(); }
   }
+  Widget _captionedVideo(VideoPlayerController player) => AspectRatio(
+    aspectRatio: player.value.aspectRatio,
+    child: Stack(fit: StackFit.expand, children: [
+      VideoPlayer(player),
+      ValueListenableBuilder<VideoPlayerValue>(
+        valueListenable: player,
+        builder: (context, value, _) {
+          final caption = editedCues
+              .where((cue) => cue.start <= value.position && cue.end > value.position)
+              .map((cue) => cue.translation.trim().isEmpty ? cue.original : cue.translation)
+              .where((text) => text.trim().isNotEmpty)
+              .join('\n');
+          if (caption.isEmpty) return const SizedBox.shrink();
+          return Align(
+            alignment: Alignment.bottomCenter,
+            child: Container(
+              margin: const EdgeInsets.all(12),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+              decoration: BoxDecoration(color: Colors.black87, borderRadius: BorderRadius.circular(8)),
+              child: Text(caption, textAlign: TextAlign.center,
+                  style: const TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w600)),
+            ),
+          );
+        },
+      ),
+    ]),
+  );
+
   Future<void> _fullscreen() async {
     final player = videoController;
     if (player == null || !player.value.isInitialized) return;
-    await Navigator.push(context, MaterialPageRoute<void>(builder: (_) => Scaffold(backgroundColor: Colors.black, body: SafeArea(child: Stack(children: [Center(child: AspectRatio(aspectRatio: player.value.aspectRatio, child: VideoPlayer(player))), Positioned(left: 8, top: 8, child: IconButton(onPressed: () => Navigator.pop(context), icon: const Icon(Icons.fullscreen_exit))), Positioned(left: 12, right: 12, bottom: 12, child: ValueListenableBuilder<VideoPlayerValue>(valueListenable: player, builder: (_, value, __) => Column(children: [Text(editedCues.where((c) => c.start <= value.position && c.end > value.position).map((c) => c.translation.isEmpty ? c.original : c.translation).join('\n'), textAlign: TextAlign.center, style: const TextStyle(color: Colors.white, backgroundColor: Colors.black87, fontSize: 22)), VideoProgressIndicator(player, allowScrubbing: true), IconButton(onPressed: () => value.isPlaying ? player.pause() : player.play(), icon: Icon(value.isPlaying ? Icons.pause : Icons.play_arrow))])))])))));
+    await Navigator.push(context, MaterialPageRoute<void>(builder: (routeContext) => Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        leading: IconButton(tooltip: 'Dil nga ekrani i plotë',
+            onPressed: () => Navigator.pop(routeContext), icon: const Icon(Icons.fullscreen_exit)),
+      ),
+      body: SafeArea(child: Column(children: [
+        Expanded(child: Center(child: _captionedVideo(player))),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          child: VideoProgressIndicator(player, allowScrubbing: true),
+        ),
+        ValueListenableBuilder<VideoPlayerValue>(
+          valueListenable: player,
+          builder: (_, value, _) => IconButton(
+            tooltip: value.isPlaying ? 'Pauzo' : 'Luaj',
+            onPressed: () async {
+              if (value.isPlaying) {
+                await player.pause();
+              } else {
+                if (value.position >= value.duration) await player.seekTo(Duration.zero);
+                await player.play();
+              }
+            },
+            icon: Icon(value.isPlaying ? Icons.pause : Icons.play_arrow),
+          ),
+        ),
+      ])),
+    )));
   }
 
   Future<void> _pickVideo() async {
@@ -441,18 +498,10 @@ class _SubtitlePreviewPageState extends State<SubtitlePreviewPage> {
   }
   Widget _videoPane() => Column(mainAxisSize: MainAxisSize.min, children: [
         if (videoController != null && videoController!.value.isInitialized) ...[
-          SizedBox(height: MediaQuery.sizeOf(context).height * .28, child: Center(child: AspectRatio(aspectRatio: videoController!.value.aspectRatio, child: Stack(fit: StackFit.expand, children: [
-            VideoPlayer(videoController!),
-            ValueListenableBuilder<VideoPlayerValue>(valueListenable: videoController!, builder: (context, value, _) {
-              final current = value.position;
-              final matching = editedCues.where((cue) => cue.start <= current && cue.end > current).toList();
-              if (matching.isEmpty) return const SizedBox.shrink();
-              final cue = matching.first;
-              final text = cue.translation.trim().isNotEmpty ? cue.translation : cue.original;
-              if (text.trim().isEmpty) return const SizedBox.shrink();
-              return Align(alignment: Alignment.bottomCenter, child: Padding(padding: const EdgeInsets.all(12), child: DecoratedBox(decoration: BoxDecoration(color: Colors.black87, borderRadius: BorderRadius.circular(8)), child: Padding(padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7), child: Text(text, textAlign: TextAlign.center, style: const TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w600))))));
-            }),
-          ])))),
+          SizedBox(
+            height: MediaQuery.sizeOf(context).height * .28,
+            child: Center(child: _captionedVideo(videoController!)),
+          ),
           VideoProgressIndicator(videoController!, allowScrubbing: true, padding: const EdgeInsets.symmetric(vertical: 12)),
           ValueListenableBuilder<VideoPlayerValue>(
             valueListenable: videoController!,

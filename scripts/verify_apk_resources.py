@@ -10,6 +10,7 @@ with zipfile.ZipFile(apk) as archive:
     assert bad_entry is None, f'Corrupt APK ZIP entry: {bad_entry}'
     names = archive.namelist()
     assert len(names) == len(set(names)), 'Duplicate APK entries are not allowed'
+    assert all(not name.startswith('/') and '..' not in name.split('/') and '\\' not in name for name in names), 'Unsafe APK archive entry path'
     assert 'lib/arm64-v8a/libflutter.so' in names, 'ARM64 Flutter runtime missing'
     assert not any(name.startswith(('lib/x86', 'lib/armeabi')) for name in names), 'Unexpected non-ARM64 runtime'
     icons = [name for name in names if name.startswith('res/') and name.endswith('/ic_launcher.png')]
@@ -31,6 +32,8 @@ with zipfile.ZipFile(apk) as archive:
             found.add(actual.size)
     assert found == set(expected), 'APK launcher densities do not match generated artwork'
     frames = sorted(Path('assets/story').glob('frame_*.jpg'))
+    bundled_frames = sorted(name for name in names if name.startswith('assets/flutter_assets/assets/story/') and name.lower().endswith(('.jpg', '.jpeg', '.png', '.webp')))
+    assert bundled_frames == sorted('assets/flutter_assets/' + frame.as_posix() for frame in frames), 'Unexpected or missing bundled story images'
     for frame in frames:
         name = 'assets/flutter_assets/' + frame.as_posix()
         assert archive.read(name) == frame.read_bytes(), f'Illustration missing/changed: {frame.name}'

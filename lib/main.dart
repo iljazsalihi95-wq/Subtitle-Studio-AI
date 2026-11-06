@@ -336,7 +336,7 @@ class _SubtitlePreviewPageState extends State<SubtitlePreviewPage> {
         ),
         ValueListenableBuilder<VideoPlayerValue>(
           valueListenable: player,
-          builder: (_, value, _) => IconButton(
+          builder: (context, value, child) => IconButton(
             tooltip: value.isPlaying ? 'Pauzo' : 'Luaj',
             onPressed: () async {
               if (value.isPlaying) {

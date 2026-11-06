@@ -195,8 +195,8 @@ class _SubtitlePreviewPageState extends State<SubtitlePreviewPage> {
           await _recoverableSave();
         }
       }
-    } catch (error) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Përkthimi u ndal: $error. Rezultatet e përfunduara janë ruajtur.')));
+    } catch (_) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Përkthimi u ndërpre. Kontrollo lidhjen AI; rezultatet e përfunduara janë ruajtur lokalisht.')));
     } finally {
       if (mounted) setState(() => aiBusy = false);
     }

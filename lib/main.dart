@@ -239,7 +239,7 @@ class _SubtitlePreviewPageState extends State<SubtitlePreviewPage> {
         await _recoverableSave();
       }
     } catch (error) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$error')));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Përkthimi AI dështoi. Kontrollo lidhjen dhe provo përsëri.')));
     } finally { if (mounted) setState(() => aiBusy = false); }
   }
   void _split(int index) {

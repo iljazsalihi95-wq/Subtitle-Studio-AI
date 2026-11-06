@@ -48,17 +48,17 @@ class _HomePageState extends State<HomePage> {
         return;
       }
       setState(() { selectedFile = file.name; selectedVideoPath = file.path; });
-      _newSubtitleProject();
+      _newSubtitleProject(videoPath: file.path);
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Zgjedhja e videos dështoi.')));
     }
   }
 
-  void _newSubtitleProject() {
+  void _newSubtitleProject({String? videoPath}) {
     Navigator.push(context, MaterialPageRoute<void>(builder: (_) => SubtitlePreviewPage(
       filename: 'projekt_i_ri.srt',
-      videoPath: selectedVideoPath,
+      videoPath: videoPath,
       cues: [SubtitleCue(start: Duration.zero, end: const Duration(seconds: 3), original: '', translation: '')],
     )));
   }
@@ -113,7 +113,7 @@ class _HomePageState extends State<HomePage> {
       Text('Studio profesionale për titrat e tu.', style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w800)),
       const SizedBox(height: 8), const Text('Importo • kontrollo timeline-in • përkthe • eksporto', style: TextStyle(color: Color(0xFFB7C2D0), height: 1.45)),
       const SizedBox(height: 24),
-      _Action(icon: Icons.video_file_outlined, title: 'Projekt i ri', subtitle: 'Hap editorin e titrave pa kërkuar skedar', primary: true, onTap: _newSubtitleProject),
+      _Action(icon: Icons.video_file_outlined, title: 'Projekt i ri', subtitle: 'Hap editorin e titrave pa kërkuar skedar', primary: true, onTap: () => _newSubtitleProject()),
       _Action(icon: Icons.subtitles_outlined, title: 'Studio me video', subtitle: 'Zgjidh videon • shiko • sinkronizo titrat', onTap: _openVideoStudio),
       _Action(icon: Icons.file_open_outlined, title: 'Importo titra ekzistues', subtitle: 'Zgjidh një skedar SRT ose VTT', onTap: _openSubtitleStudio),
       _Action(icon: Icons.history, title: 'Vazhdo projektin e fundit', subtitle: 'Rikthe redaktimet e ruajtura automatikisht', onTap: _resumeProject),

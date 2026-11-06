@@ -7,14 +7,19 @@ from PIL import Image, ImageChops
 apk = Path('build/app/outputs/flutter-apk/app-arm64-v8a-debug.apk')
 with zipfile.ZipFile(apk) as archive:
     names = archive.namelist()
+    assert len(names) == len(set(names)), 'Duplicate APK entries are not allowed'
     assert 'lib/arm64-v8a/libflutter.so' in names, 'ARM64 Flutter runtime missing'
     assert not any(name.startswith(('lib/x86', 'lib/armeabi')) for name in names), 'Unexpected non-ARM64 runtime'
     icons = [name for name in names if name.startswith('res/') and name.endswith('/ic_launcher.png')]
-    assert len(icons) >= 5, f'Expected all five launcher densities, found {len(icons)}'
+    assert len(icons) == 5, f'Expected exactly five launcher icons, found {len(icons)}'
     expected = {}
-    for path in Path('android/app/src/main/res').glob('mipmap-*/ic_launcher.png'):
+    densities = {'mdpi': 48, 'hdpi': 72, 'xhdpi': 96, 'xxhdpi': 144, 'xxxhdpi': 192}
+    for density, size in densities.items():
+        path = Path(f'android/app/src/main/res/mipmap-{density}/ic_launcher.png')
+        assert path.is_file(), f'Missing source launcher: {path}'
         with Image.open(path) as image:
-            expected[image.size] = image.convert('RGBA').copy()
+            assert image.size == (size, size), f'Incorrect source launcher size: {path}'
+            expected[(size, size)] = image.convert('RGBA').copy()
     found = set()
     for name in icons:
         with Image.open(io.BytesIO(archive.read(name))) as image:

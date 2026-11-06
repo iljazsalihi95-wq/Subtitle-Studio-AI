@@ -6,6 +6,8 @@ from PIL import Image, ImageChops
 
 apk = Path('build/app/outputs/flutter-apk/app-arm64-v8a-debug.apk')
 with zipfile.ZipFile(apk) as archive:
+    bad_entry = archive.testzip()
+    assert bad_entry is None, f'Corrupt APK ZIP entry: {bad_entry}'
     names = archive.namelist()
     assert len(names) == len(set(names)), 'Duplicate APK entries are not allowed'
     assert 'lib/arm64-v8a/libflutter.so' in names, 'ARM64 Flutter runtime missing'

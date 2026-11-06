@@ -203,8 +203,21 @@ class _SubtitlePreviewPageState extends State<SubtitlePreviewPage> {
   }
 
   Timer? recoveryTimer;
-  Future<void> _recoverableSave() async {
-    try { final snapshot = encodeProject(SubtitleProject(title: widget.filename, cues: editedCues, videoPath: projectVideoPath)); final root = await getApplicationDocumentsDirectory(); final file = File('${root.path}/last_project.ssai'); final temp = File('${file.path}.tmp'); await temp.writeAsString(snapshot, flush: true); await temp.rename(file.path); } catch (_) { if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Ruajtja automatike dështoi. Përdor Ruaj projektin.'))); }
+  Future<void> _saveQueue = Future<void>.value();
+  Future<void> _recoverableSave() {
+    // Capture before queuing: later edits must never be replaced by an older write.
+    final snapshot = encodeProject(SubtitleProject(title: widget.filename, cues: editedCues, videoPath: projectVideoPath));
+    final pending = _saveQueue.then((_) async {
+      final root = await getApplicationDocumentsDirectory();
+      final file = File('${root.path}/last_project.ssai');
+      final temp = File('${file.path}.tmp');
+      await temp.writeAsString(snapshot, flush: true);
+      await temp.rename(file.path);
+    });
+    _saveQueue = pending.catchError((Object error) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Ruajtja automatike dështoi. Përdor Ruaj projektin.')));
+    });
+    return _saveQueue;
   }
   void _scheduleRecovery() { recoveryTimer?.cancel(); recoveryTimer = Timer(const Duration(milliseconds: 400), _recoverableSave); }
 
@@ -232,9 +245,10 @@ class _SubtitlePreviewPageState extends State<SubtitlePreviewPage> {
     if (!await configureAi(context) || !mounted) return;
     setState(() => aiBusy = true);
     final controller = translations[index];
+    final before = controller.text;
     try {
       final text = await aiText(source, operation: 'translate');
-      if (mounted && translations.contains(controller)) {
+      if (mounted && translations.contains(controller) && controller.text == before) {
         controller.text = text;
         await _recoverableSave();
       }

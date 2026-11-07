@@ -211,9 +211,9 @@ class _SubtitlePreviewPageState extends State<SubtitlePreviewPage> {
         }
         if (mounted) setState(() => transcriptionStatus = '$count titra • ${progress.processedUs ~/ 60000000} minuta audio të përpunuara');
       }
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(cancelTranscription
+      if (mounted) { ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(cancelTranscription
         ? 'U ndal. Titrat e përfunduar mbeten në projekt.'
-        : count == 0 ? 'Nuk u gjet e folur në audio.' : '$count titra u krijuan. Tani mund t’i përkthesh dhe eksportosh.')));
+        : count == 0 ? 'Nuk u gjet e folur në audio.' : '$count titra u krijuan. Tani mund t’i përkthesh dhe eksportosh.'))); }
     } on PlatformException catch (error) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.message ?? 'Nxjerrja e audios dështoi.')));
     } on FormatException catch (error) {

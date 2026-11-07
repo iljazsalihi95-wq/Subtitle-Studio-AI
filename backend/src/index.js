@@ -28,7 +28,7 @@ export default {
   async fetch(request, env) {
     const path = new URL(request.url).pathname;
     if (request.method === 'GET' && path === '/health') {
-      return json({ service: SERVICE, status: 'ok', configured: Boolean(env.OPENAI_API_KEY && env.BACKEND_ACCESS_TOKEN) });
+      return json({ service: SERVICE, status: 'ok', configured: Boolean(env.OPENAI_API_KEY && typeof env.BACKEND_ACCESS_TOKEN === 'string' && env.BACKEND_ACCESS_TOKEN.length >= 32), version: '0.3.0', capabilities: ['transcribe', 'translate'] });
     }
     if (!['/v1/text', '/v1/transcribe'].includes(path)) return json({ error: 'Not found' }, 404);
     if (request.method !== 'POST') return json({ error: 'Method not allowed' }, 405);

@@ -186,13 +186,14 @@ class _SubtitlePreviewPageState extends State<SubtitlePreviewPage> {
     }
     final accepted = await showDialog<bool>(context: context, builder: (dialog) => AlertDialog(
       title: const Text('Krijo titra nga zëri i videos'),
-      content: const Text('Audioja dërgohet me pjesë te shërbimi AI për njohjen e të folurës. Titrat aktualë zëvendësohen kur vjen rezultati i parë. Ruaje projektin nëse dëshiron ta mbash.'),
+      content: const Text('Audioja dërgohet me pjesë te shërbimi AI. Gjuha e folur njihet automatikisht; krijohen titrat origjinalë me kohë dhe pastaj përkthehen në gjuhën e zgjedhur. Titrat aktualë zëvendësohen kur vjen rezultati i parë. Ruaje projektin nëse dëshiron ta mbash.'),
       actions: [TextButton(onPressed: () => Navigator.pop(dialog, false), child: const Text('Anulo')),
         FilledButton(onPressed: () => Navigator.pop(dialog, true), child: const Text('Krijo titrat'))],
     ));
     if (accepted != true || !mounted || !await ensureAi(context) || !mounted) return;
     setState(() { transcriptionBusy = true; cancelTranscription = false; transcriptionStatus = 'Po nxjerr audion dhe njoh të folurën…'; });
     var count = 0;
+    var transcriptionCompleted = false;
     try {
       await for (final progress in transcribeVideo(path, () => !mounted || cancelTranscription)) {
         if (!mounted || cancelTranscription) break;
@@ -211,9 +212,10 @@ class _SubtitlePreviewPageState extends State<SubtitlePreviewPage> {
         }
         if (mounted) setState(() => transcriptionStatus = '$count titra • ${progress.processedUs ~/ 60000000} minuta audio të përpunuara');
       }
+      transcriptionCompleted = !cancelTranscription;
       if (mounted) { ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(cancelTranscription
         ? 'U ndal. Titrat e përfunduar mbeten në projekt.'
-        : count == 0 ? 'Nuk u gjet e folur në audio.' : '$count titra u krijuan. Tani mund t’i përkthesh dhe eksportosh.'))); }
+        : count == 0 ? 'Nuk u gjet e folur në audio.' : '$count titra origjinalë u krijuan. Po nis përkthimin automatik…'))); }
     } on PlatformException catch (error) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.message ?? 'Nxjerrja e audios dështoi.')));
     } on FormatException catch (error) {
@@ -222,6 +224,9 @@ class _SubtitlePreviewPageState extends State<SubtitlePreviewPage> {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Transkriptimi dështoi. Kontrollo lidhjen AI; pjesët e përfunduara mbeten të ruajtura.')));
     } finally {
       if (mounted) setState(() => transcriptionBusy = false);
+    }
+    if (mounted && transcriptionCompleted && count > 0) {
+      await _translateProject();
     }
   }
 
@@ -243,6 +248,7 @@ class _SubtitlePreviewPageState extends State<SubtitlePreviewPage> {
       for (var i = 0; i < targets.length; i++) {
         if (!mounted || cancelTranslation) break;
         if (sources[i].trim().isEmpty) continue;
+        if (!translations.contains(targets[i])) continue;
         final before = targets[i].text;
         final result = await aiText(sources[i], operation: 'translate');
         if (!mounted || cancelTranslation) break;
@@ -640,14 +646,14 @@ class _SubtitlePreviewPageState extends State<SubtitlePreviewPage> {
       if (MediaQuery.viewInsetsOf(context).bottom == 0) ...[
         Padding(padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
           child: Column(children: [
-            FilledButton.icon(onPressed: transcriptionBusy || aiBusy ? null : _generateSubtitles, icon: const Icon(Icons.record_voice_over), label: const Text('Krijo titra nga video')),
+            FilledButton.icon(onPressed: transcriptionBusy || aiBusy ? null : _generateSubtitles, icon: const Icon(Icons.record_voice_over), label: const Text('Krijo dhe përkthe titrat')),
             if (!aiConfigured) const Text('AI nuk është lidhur. Luajtja e videos dhe Shto titër nuk nxjerrin fjalët automatikisht.', textAlign: TextAlign.center, style: TextStyle(color: Color(0xFFFFB49D))),
           ])),
         Flexible(fit: FlexFit.loose, child: SingleChildScrollView(child: _videoPane())),
       ],
       Expanded(child: ListView.builder(padding: const EdgeInsets.all(18), itemCount: visible.length + 1, itemBuilder: (context, index) {
       if (index == 0) { return Column(children: [
-        const Padding(padding: EdgeInsets.symmetric(vertical: 8), child: Text('Njoh zërin → krijo titrat me kohë → përkthe → ruaj SRT/VTT', textAlign: TextAlign.center)),
+        const Padding(padding: EdgeInsets.symmetric(vertical: 8), child: Text('Automatik: njoh gjuhën e folur → krijo titrat origjinalë → përkthe. Pastaj ruaj SRT/VTT.', textAlign: TextAlign.center)),
         if (transcriptionBusy) ...[
           const LinearProgressIndicator(),
           Text(transcriptionStatus),

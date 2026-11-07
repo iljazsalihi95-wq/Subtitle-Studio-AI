@@ -18,3 +18,16 @@ key.properties
 /private/
 /local-imports/
 /user-documents/
+
+# Local credentials, private databases and generated personal backups
+.envrc
+*.asc
+*.mobileprovision
+*.sqlite
+*.sqlite3
+*.db
+*.db-journal
+*.bak
+/secrets/
+/backups/
+/local-data/

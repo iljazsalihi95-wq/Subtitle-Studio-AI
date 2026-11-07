@@ -636,9 +636,17 @@ class _SubtitlePreviewPageState extends State<SubtitlePreviewPage> {
   Widget build(BuildContext context) {
     final report = validateTimeline(editedCues);
     final visible = <int>[for (var i = 0; i < timedCues.length; i++) if ((!onlyProblems || report.overlapIndexes.contains(i) || report.emptyIndexes.contains(i)) && (searchQuery.isEmpty || timedCues[i].original.toLowerCase().contains(searchQuery) || translations[i].text.toLowerCase().contains(searchQuery))) i];
-    return Scaffold(appBar: AppBar(title: Text(widget.filename), actions: [IconButton(tooltip: 'Ruaj projektin', onPressed: _saveProject, icon: const Icon(Icons.save_outlined)), TextButton(onPressed: () => _showExport(false), child: const Text('SRT')), TextButton(onPressed: () => _showExport(true), child: const Text('VTT'))]), body: SafeArea(child: Column(children: [_videoPane(), Expanded(child: ListView.builder(padding: const EdgeInsets.all(18), itemCount: visible.length + 1, itemBuilder: (context, index) {
+    return Scaffold(appBar: AppBar(title: Text(widget.filename), actions: [IconButton(tooltip: 'Ruaj projektin', onPressed: _saveProject, icon: const Icon(Icons.save_outlined)), TextButton(onPressed: () => _showExport(false), child: const Text('SRT')), TextButton(onPressed: () => _showExport(true), child: const Text('VTT'))]), body: SafeArea(child: Column(children: [
+      if (MediaQuery.viewInsetsOf(context).bottom == 0) ...[
+        Padding(padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+          child: Column(children: [
+            FilledButton.icon(onPressed: transcriptionBusy || aiBusy ? null : _generateSubtitles, icon: const Icon(Icons.record_voice_over), label: const Text('Krijo titra nga video')),
+            if (!aiConfigured) const Text('AI nuk është lidhur. Luajtja e videos dhe Shto titër nuk nxjerrin fjalët automatikisht.', textAlign: TextAlign.center, style: TextStyle(color: Color(0xFFFFB49D))),
+          ])),
+        Flexible(fit: FlexFit.loose, child: SingleChildScrollView(child: _videoPane())),
+      ],
+      Expanded(child: ListView.builder(padding: const EdgeInsets.all(18), itemCount: visible.length + 1, itemBuilder: (context, index) {
       if (index == 0) { return Column(children: [
-        FilledButton.icon(onPressed: transcriptionBusy || aiBusy ? null : _generateSubtitles, icon: const Icon(Icons.record_voice_over), label: const Text('Krijo titra nga video')),
         const Padding(padding: EdgeInsets.symmetric(vertical: 8), child: Text('Njoh zërin → krijo titrat me kohë → përkthe → ruaj SRT/VTT', textAlign: TextAlign.center)),
         if (transcriptionBusy) ...[
           const LinearProgressIndicator(),

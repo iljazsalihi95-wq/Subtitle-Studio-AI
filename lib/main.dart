@@ -8,6 +8,7 @@ import 'package:flutter/services.dart';
 import 'package:video_player/video_player.dart';
 import 'package:path_provider/path_provider.dart';
 import 'features/subtitles/srt_editor.dart';
+import 'features/subtitles/video_transcription.dart';
 import 'features/ai/ai_connection.dart';
 
 void main() => runApp(const StudioApp());
@@ -172,12 +173,69 @@ class _SubtitlePreviewPageState extends State<SubtitlePreviewPage> {
   bool videoLoading = false;
   double playbackSpeed = 1.0;
   String? projectVideoPath;
+  bool transcriptionBusy = false;
+  bool cancelTranscription = false;
+  String transcriptionStatus = '';
+
+  Future<void> _generateSubtitles() async {
+    if (transcriptionBusy || aiBusy) return;
+    final path = projectVideoPath;
+    if (path == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Ngarko videon fillimisht.')));
+      return;
+    }
+    final accepted = await showDialog<bool>(context: context, builder: (dialog) => AlertDialog(
+      title: const Text('Krijo titra nga zëri i videos'),
+      content: const Text('Audioja dërgohet me pjesë te shërbimi AI për njohjen e të folurës. Titrat aktualë zëvendësohen kur vjen rezultati i parë. Ruaje projektin nëse dëshiron ta mbash.'),
+      actions: [TextButton(onPressed: () => Navigator.pop(dialog, false), child: const Text('Anulo')),
+        FilledButton(onPressed: () => Navigator.pop(dialog, true), child: const Text('Krijo titrat'))],
+    ));
+    if (accepted != true || !mounted || !await ensureAi(context) || !mounted) return;
+    setState(() { transcriptionBusy = true; cancelTranscription = false; transcriptionStatus = 'Po nxjerr audion dhe njoh të folurën…'; });
+    var count = 0;
+    try {
+      await for (final progress in transcribeVideo(path, () => !mounted || cancelTranscription)) {
+        if (!mounted || cancelTranscription) break;
+        if (progress.cues.isNotEmpty) {
+          final old = List<TextEditingController>.of(translations);
+          for (final controller in old) { controller.removeListener(_onTranslationChanged); }
+          setState(() {
+            timedCues = progress.cues;
+            translations.clear();
+            translations.addAll(timedCues.map((cue) => TextEditingController(text: cue.translation)..addListener(_onTranslationChanged)));
+            onlyProblems = false; searchQuery = ''; cueSearch.clear();
+          });
+          WidgetsBinding.instance.addPostFrameCallback((_) { for (final controller in old) { controller.dispose(); } });
+          count = timedCues.length;
+          await _recoverableSave();
+        }
+        if (mounted) setState(() => transcriptionStatus = '$count titra • ${progress.processedUs ~/ 60000000} minuta audio të përpunuara');
+      }
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(cancelTranscription
+        ? 'U ndal. Titrat e përfunduar mbeten në projekt.'
+        : count == 0 ? 'Nuk u gjet e folur në audio.' : '$count titra u krijuan. Tani mund t’i përkthesh dhe eksportosh.')));
+    } on PlatformException catch (error) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.message ?? 'Nxjerrja e audios dështoi.')));
+    } on FormatException catch (error) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.message)));
+    } catch (_) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Transkriptimi dështoi. Kontrollo lidhjen AI; pjesët e përfunduara mbeten të ruajtura.')));
+    } finally {
+      if (mounted) setState(() => transcriptionBusy = false);
+    }
+  }
+
   bool aiBusy = false;
   bool cancelTranslation = false;
   int translatedCount = 0;
 
   Future<void> _translateProject() async {
-    if (aiBusy || !await configureAi(context) || !mounted) return;
+    if (aiBusy || transcriptionBusy) return;
+    if (!editedCues.any((cue) => cue.original.trim().isNotEmpty || cue.translation.trim().isNotEmpty)) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Nuk ka tekst për përkthim. Përdor Krijo titra nga video ose Importo SRT / VTT.')));
+      return;
+    }
+    if (!await ensureAi(context) || !mounted) return;
     final targets = List<TextEditingController>.of(translations);
     final sources = [for (var i = 0; i < timedCues.length; i++) timedCues[i].original.trim().isNotEmpty ? timedCues[i].original : translations[i].text];
     setState(() { aiBusy = true; cancelTranslation = false; translatedCount = 0; });
@@ -239,10 +297,10 @@ class _SubtitlePreviewPageState extends State<SubtitlePreviewPage> {
     }
   }
   Future<void> _translate(int index) async {
-    if (aiBusy) return;
+    if (aiBusy || transcriptionBusy) return;
     final source = timedCues[index].original.trim().isNotEmpty ? timedCues[index].original : translations[index].text;
     if (source.trim().isEmpty) return;
-    if (!await configureAi(context) || !mounted) return;
+    if (!await ensureAi(context) || !mounted) return;
     setState(() => aiBusy = true);
     final controller = translations[index];
     final before = controller.text;
@@ -257,6 +315,7 @@ class _SubtitlePreviewPageState extends State<SubtitlePreviewPage> {
     } finally { if (mounted) setState(() => aiBusy = false); }
   }
   void _split(int index) {
+    if (transcriptionBusy) return;
     _scheduleRecovery();
     final cue = editedCues[index];
     final at = videoController?.value.position ?? Duration(milliseconds: (cue.start.inMilliseconds + cue.end.inMilliseconds) ~/ 2);
@@ -270,6 +329,7 @@ class _SubtitlePreviewPageState extends State<SubtitlePreviewPage> {
     }
   }
   void _merge(int index) {
+    if (transcriptionBusy) return;
     _scheduleRecovery();
     if (index + 1 >= timedCues.length) return;
     final merged = mergeCues(editedCues[index], editedCues[index + 1]);
@@ -278,6 +338,7 @@ class _SubtitlePreviewPageState extends State<SubtitlePreviewPage> {
     WidgetsBinding.instance.addPostFrameCallback((_) => removed.dispose());
   }
   Future<void> _importIntoProject() async {
+    if (transcriptionBusy) return;
     try {
       final files = await FilePicker.pickFiles(type: FileType.custom, allowedExtensions: ['srt','vtt']);
       if (files.isEmpty) return;
@@ -298,6 +359,7 @@ class _SubtitlePreviewPageState extends State<SubtitlePreviewPage> {
     } catch (error) { if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Importimi i titrave dështoi: $error'))); }
   }
   Future<void> _editTiming(int index) async {
+    if (transcriptionBusy) return;
     final cue = timedCues[index];
     final start = TextEditingController(text: '${cue.start.inMilliseconds}');
     final end = TextEditingController(text: '${cue.end.inMilliseconds}');
@@ -368,6 +430,7 @@ class _SubtitlePreviewPageState extends State<SubtitlePreviewPage> {
   }
 
   Future<void> _pickVideo() async {
+    if (transcriptionBusy) return;
     final files = await FilePicker.pickFiles(type: FileType.video);
     if (!mounted || files.isEmpty || files.single.path == null) return;
     await _loadVideo(files.single.path!);
@@ -391,6 +454,7 @@ class _SubtitlePreviewPageState extends State<SubtitlePreviewPage> {
   }
   bool onlyProblems = false;
   void _deleteCue(int index) {
+    if (transcriptionBusy) return;
     _scheduleRecovery();
     if (timedCues.length <= 1) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Projekti duhet të ketë të paktën një titër.')));
@@ -405,6 +469,7 @@ class _SubtitlePreviewPageState extends State<SubtitlePreviewPage> {
     WidgetsBinding.instance.addPostFrameCallback((_) => removed.dispose());
   }
   void _addCue() {
+    if (transcriptionBusy) return;
     _scheduleRecovery();
     final position = videoController?.value.position;
     final start = position ?? (timedCues.isEmpty ? Duration.zero : timedCues.last.end);
@@ -436,6 +501,7 @@ class _SubtitlePreviewPageState extends State<SubtitlePreviewPage> {
     });
   }
   void _markCueBoundary(int index, {required bool start}) {
+    if (transcriptionBusy) return;
     _scheduleRecovery();
     final player = videoController;
     if (player == null || !player.value.isInitialized) return;
@@ -458,6 +524,7 @@ class _SubtitlePreviewPageState extends State<SubtitlePreviewPage> {
     ));
   }
   void _shift() {
+    if (transcriptionBusy) return;
     _scheduleRecovery();
     final value = int.tryParse(offsetMs.text.trim());
     if (value == null) { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Shkruaj milisekonda, p.sh. 1500 ose -500.'))); return; }
@@ -469,6 +536,10 @@ class _SubtitlePreviewPageState extends State<SubtitlePreviewPage> {
   @override void dispose() { if (recoveryTimer?.isActive ?? false) { recoveryTimer?.cancel(); _recoverableSave(); } for (final controller in translations) { controller.dispose(); } offsetMs.dispose(); cueSearch.dispose(); videoController?.dispose(); super.dispose(); }
   List<SubtitleCue> get editedCues => [for (var i = 0; i < timedCues.length; i++) timedCues[i].translated(translations[i].text)];
   void _showExport(bool vtt) {
+    if (!editedCues.any((cue) => cue.original.trim().isNotEmpty || cue.translation.trim().isNotEmpty)) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Nuk ka titra për eksport. Krijo titra nga video ose importo SRT/VTT.')));
+      return;
+    }
     final output = vtt ? exportVtt(editedCues) : exportSrt(editedCues);
     showDialog<void>(context: context, builder: (dialogContext) => AlertDialog(
       title: Text(vtt ? 'Eksport VTT' : 'Eksport SRT'),
@@ -567,6 +638,13 @@ class _SubtitlePreviewPageState extends State<SubtitlePreviewPage> {
     final visible = <int>[for (var i = 0; i < timedCues.length; i++) if ((!onlyProblems || report.overlapIndexes.contains(i) || report.emptyIndexes.contains(i)) && (searchQuery.isEmpty || timedCues[i].original.toLowerCase().contains(searchQuery) || translations[i].text.toLowerCase().contains(searchQuery))) i];
     return Scaffold(appBar: AppBar(title: Text(widget.filename), actions: [IconButton(tooltip: 'Ruaj projektin', onPressed: _saveProject, icon: const Icon(Icons.save_outlined)), TextButton(onPressed: () => _showExport(false), child: const Text('SRT')), TextButton(onPressed: () => _showExport(true), child: const Text('VTT'))]), body: SafeArea(child: Column(children: [_videoPane(), Expanded(child: ListView.builder(padding: const EdgeInsets.all(18), itemCount: visible.length + 1, itemBuilder: (context, index) {
       if (index == 0) { return Column(children: [
+        FilledButton.icon(onPressed: transcriptionBusy || aiBusy ? null : _generateSubtitles, icon: const Icon(Icons.record_voice_over), label: const Text('Krijo titra nga video')),
+        const Padding(padding: EdgeInsets.symmetric(vertical: 8), child: Text('Njoh zërin → krijo titrat me kohë → përkthe → ruaj SRT/VTT', textAlign: TextAlign.center)),
+        if (transcriptionBusy) ...[
+          const LinearProgressIndicator(),
+          Text(transcriptionStatus),
+          TextButton.icon(onPressed: () => setState(() => cancelTranscription = true), icon: const Icon(Icons.stop), label: const Text('Ndalo transkriptimin')),
+        ],
         OutlinedButton.icon(onPressed: _pickVideo, icon: const Icon(Icons.video_library_outlined), label: Text(videoController == null ? 'Ngarko videon përkatëse' : 'Ndrysho videon')),
         OutlinedButton.icon(onPressed: _importIntoProject, icon: const Icon(Icons.subtitles_outlined), label: const Text('Importo SRT / VTT në video')),
         Wrap(spacing: 8, crossAxisAlignment: WrapCrossAlignment.center, children: [
@@ -598,7 +676,7 @@ class _SubtitlePreviewPageState extends State<SubtitlePreviewPage> {
         )),
         Wrap(spacing: 8, children: [TextButton.icon(onPressed: () => _editTiming(cueIndex), icon: const Icon(Icons.timer_outlined), label: const Text('Koha')), TextButton.icon(onPressed: () => _split(cueIndex), icon: const Icon(Icons.call_split), label: const Text('Ndaj')), TextButton.icon(onPressed: cueIndex + 1 < timedCues.length ? () => _merge(cueIndex) : null, icon: const Icon(Icons.merge), label: const Text('Bashko')), TextButton.icon(onPressed: aiBusy ? null : () => _translate(cueIndex), icon: const Icon(Icons.translate), label: const Text('Përkthe AI'))]),
         const SizedBox(height: 8),
-        TextField(controller: translations[cueIndex], maxLines: null, decoration: const InputDecoration(labelText: 'Teksti i redaktuar / përkthimi shqip', border: OutlineInputBorder())),
+        TextField(controller: translations[cueIndex], readOnly: transcriptionBusy, maxLines: null, decoration: const InputDecoration(labelText: 'Teksti i redaktuar / përkthimi shqip', border: OutlineInputBorder())),
       ])));
     }))])));
   }

@@ -30,10 +30,11 @@ export default {
     if (request.method === 'GET' && path === '/health') {
       return json({ service: SERVICE, status: 'ok', configured: Boolean(env.OPENAI_API_KEY && env.BACKEND_ACCESS_TOKEN) });
     }
-    if (path !== '/v1/text') return json({ error: 'Not found' }, 404);
+    if (!['/v1/text', '/v1/transcribe'].includes(path)) return json({ error: 'Not found' }, 404);
     if (request.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
     if (!authorized(request, env.BACKEND_ACCESS_TOKEN)) return json({ error: 'Unauthorized' }, 401);
     if (!env.OPENAI_API_KEY) return json({ error: 'AI provider is not configured' }, 503);
+    if (path === '/v1/transcribe') return transcribe(request, env);
     if (!request.headers.get('Content-Type')?.toLowerCase().startsWith('application/json')) {
       return json({ error: 'Expected application/json' }, 415);
     }
@@ -85,3 +86,43 @@ export default {
   },
 };
 
+
+async function transcribe(request, env) {
+  const limit = 24 * 1024 * 1024;
+  if (!request.headers.get('Content-Type')?.startsWith('audio/mp4')) return json({error: 'Expected audio/mp4'}, 415);
+  if (Number(request.headers.get('Content-Length') || 0) > limit) return json({error: 'Audio too large'}, 413);
+  if (!request.body) return json({error: 'Audio missing'}, 400);
+  const reader = request.body.getReader();
+  const chunks = [];
+  let total = 0;
+  try {
+    while (true) {
+      const {done, value} = await reader.read();
+      if (done) break;
+      total += value.byteLength;
+      if (total > limit) { await reader.cancel(); return json({error: 'Audio too large'}, 413); }
+      chunks.push(value);
+    }
+  } catch { return json({error: 'Audio upload failed'}, 400); }
+  finally { reader.releaseLock(); }
+  if (total === 0) return json({error: 'Audio missing'}, 400);
+  const form = new FormData();
+  form.append('file', new Blob(chunks, {type: 'audio/mp4'}), 'chunk.m4a');
+  form.append('model', 'whisper-1');
+  form.append('response_format', 'verbose_json');
+  form.append('timestamp_granularities[]', 'segment');
+  try {
+    const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+      method: 'POST', headers: {Authorization: 'Bearer ' + env.OPENAI_API_KEY},
+      body: form, signal: AbortSignal.timeout(120000),
+    });
+    if (!response.ok) return json({error: 'Transcription provider failed', upstreamStatus: response.status}, 502);
+    const data = await response.json();
+    if (!Array.isArray(data.segments)) return json({error: 'Missing timed transcription'}, 502);
+    const segments = data.segments.filter(s =>
+      Number.isFinite(s.start) && Number.isFinite(s.end) && s.start >= 0 && s.end > s.start &&
+      typeof s.text === 'string' && s.text.trim() && !(s.no_speech_prob > 0.8)
+    ).map(s => ({start: s.start, end: s.end, text: s.text.trim()}));
+    return json({segments});
+  } catch { return json({error: 'Transcription unavailable'}, 502); }
+}

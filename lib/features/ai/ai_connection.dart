@@ -50,3 +50,31 @@ Future<String> aiText(String text, {String operation = 'explain', String path = 
     return (data['text'] ?? data['plan']) as String;
   } finally { client.close(force: true); }
 }
+
+bool get aiConfigured => _endpoint.isNotEmpty && _sessionToken.isNotEmpty;
+Future<bool> ensureAi(BuildContext context) async =>
+    aiConfigured || await configureAi(context);
+
+Future<List<dynamic>> transcribeAudio(File audio) async {
+  final length = await audio.length();
+  if (length <= 0 || length > 24 * 1024 * 1024) {
+    throw const FormatException('Pjesa audio është bosh ose tejkalon 24 MiB.');
+  }
+  final client = HttpClient()..connectionTimeout = const Duration(seconds: 20);
+  try {
+    final request = await client.postUrl(Uri.parse('$_endpoint/v1/transcribe')).timeout(const Duration(seconds: 20));
+    request.followRedirects = false;
+    request.headers.set(HttpHeaders.authorizationHeader, 'Bearer $_sessionToken');
+    request.headers.contentType = ContentType('audio', 'mp4');
+    request.contentLength = length;
+    await request.addStream(audio.openRead()).timeout(const Duration(seconds: 60));
+    final response = await request.close().timeout(const Duration(seconds: 150));
+    final body = await response.transform(utf8.decoder).join().timeout(const Duration(seconds: 150));
+    if (response.statusCode == 401) throw const FormatException('Tokeni i lidhjes AI nuk u pranua.');
+    if (response.statusCode == 404) throw const FormatException('Backend-i nuk e ka ende funksionin e transkriptimit. Duhet përditësuar Worker-i.');
+    if (response.statusCode != 200) throw FormatException('Transkriptimi dështoi (HTTP ${response.statusCode}).');
+    final data = jsonDecode(body);
+    if (data is! Map || data['segments'] is! List) throw const FormatException('Mungojnë titrat me kohë nga shërbimi.');
+    return data['segments'] as List;
+  } finally { client.close(force: true); }
+}

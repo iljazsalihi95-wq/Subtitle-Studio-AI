@@ -31,3 +31,34 @@ test('uses requested translation language and never returns incomplete output', 
     assert.equal(response.status,422);
   } finally {globalThis.fetch=old;}
 });
+
+function audioRequest(token = env.BACKEND_ACCESS_TOKEN, bytes = new Uint8Array([1,2,3])) {
+  return new Request('https://worker.test/v1/transcribe', {method:'POST',
+    headers:{'Content-Type':'audio/mp4', Authorization:'Bearer '+token}, body:bytes});
+}
+test('transcription authenticates and validates audio uploads', async () => {
+  assert.equal((await worker.fetch(audioRequest('wrong'),env)).status,401);
+  assert.equal((await worker.fetch(audioRequest(undefined,new Uint8Array()),env)).status,400);
+  assert.equal((await worker.fetch(new Request('https://worker.test/v1/transcribe',{method:'POST',
+    headers:{Authorization:'Bearer '+env.BACKEND_ACCESS_TOKEN,'Content-Type':'application/json'},body:'{}'}),env)).status,415);
+});
+test('transcription forwards audio and returns timed source text without leaking provider details', async () => {
+  const old = globalThis.fetch;
+  try {
+    globalThis.fetch = async (url, options) => {
+      assert.equal(url,'https://api.openai.com/v1/audio/transcriptions');
+      assert.equal(options.body.get('model'),'whisper-1');
+      assert.equal(options.body.get('response_format'),'verbose_json');
+      assert.equal(options.body.get('file').size,3);
+      return Response.json({segments:[{start:0.5,end:2,text:' السلام عليكم '},
+        {start:2,end:1,text:'invalid'},{start:3,end:4,text:'noise',no_speech_prob:0.99}]});
+    };
+    const response = await worker.fetch(audioRequest(),env);
+    assert.equal(response.status,200);
+    assert.deepEqual((await response.json()).segments,[{start:0.5,end:2,text:'السلام عليكم'}]);
+    globalThis.fetch = async () => new Response('private provider detail',{status:403});
+    const failed = await worker.fetch(audioRequest(),env);
+    assert.equal(failed.status,502);
+    assert.doesNotMatch(await failed.text(),/private provider detail/);
+  } finally { globalThis.fetch=old; }
+});

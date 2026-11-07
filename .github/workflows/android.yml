@@ -17,6 +17,17 @@ jobs:
           channel: stable
       - name: Generate Android platform files
         run: flutter create --platforms=android --project-name "$(grep '^name:' pubspec.yaml | awk '{print $2}')" .
+      - name: Install native video audio extraction bridge
+        run: |
+          cp native/MainActivity.kt android/app/src/main/kotlin/com/example/subtitle_studio_ai/MainActivity.kt
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('android/app/src/main/AndroidManifest.xml')
+          s = p.read_text()
+          if 'android.permission.INTERNET' not in s:
+              s = s.replace('<application', '<uses-permission android:name="android.permission.INTERNET"/>\n    <application', 1)
+          p.write_text(s)
+          PY
       - name: Use official Gradle distribution CDN
         run: |
           python3 - <<'PYCODE'

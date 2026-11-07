@@ -62,3 +62,28 @@ test('transcription forwards audio and returns timed source text without leaking
     assert.doesNotMatch(await failed.text(),/private provider detail/);
   } finally { globalThis.fetch=old; }
 });
+
+test('health reports transcription capability without revealing secrets', async () => {
+  const response = await worker.fetch(new Request('https://worker.test/health'), env);
+  assert.equal(response.status, 200);
+  const body = await response.json();
+  assert.equal(body.version, '0.3.0');
+  assert.equal(body.configured, true);
+  assert.deepEqual(body.capabilities, ['transcribe', 'translate']);
+  assert.doesNotMatch(JSON.stringify(body), /test-provider-key|aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/);
+  assert.equal(response.headers.get('Cache-Control'), 'no-store');
+});
+test('missing provider configuration fails closed before audio upload', async () => {
+  const response = await worker.fetch(audioRequest(), {BACKEND_ACCESS_TOKEN: env.BACKEND_ACCESS_TOKEN});
+  assert.equal(response.status, 503);
+});
+test('oversized declared audio is rejected before contacting provider', async () => {
+  const req = new Request('https://worker.test/v1/transcribe', {
+    method: 'POST', headers: {
+      'Content-Type': 'audio/mp4',
+      Authorization: 'Bearer ' + env.BACKEND_ACCESS_TOKEN,
+      'Content-Length': String(25 * 1024 * 1024)
+    }, body: new Uint8Array([1, 2, 3])
+  });
+  assert.equal((await worker.fetch(req, env)).status, 413);
+});

@@ -31,3 +31,15 @@ key.properties
 /secrets/
 /backups/
 /local-data/
+
+# Ignore sensitive imports at any directory depth
+**/private/
+**/secrets/
+**/backups/
+**/local-imports/
+**/user-documents/
+**/*.sqlite-wal
+**/*.sqlite-shm
+**/*.db-wal
+**/*.db-shm
+**/*.srt.bak

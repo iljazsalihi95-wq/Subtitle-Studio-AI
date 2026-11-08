@@ -159,6 +159,20 @@ jobs:
           OUT=build/app/outputs/flutter-apk
           test -s "$OUT/app-arm64-v8a-debug.apk"
           unzip -l "$OUT/app-arm64-v8a-debug.apk" | grep -q 'lib/arm64-v8a/libflutter.so'
+          unzip -tq "$OUT/app-arm64-v8a-debug.apk" >/dev/null
+          unzip -Z1 "$OUT/app-arm64-v8a-debug.apk" | grep -Eq '^classes[0-9]*\.dex          cd "$OUT"
+          sha256sum app-arm64-v8a-debug.apk > app-arm64-v8a-debug.apk.sha256
+          ls -lh app-arm64-v8a-debug.apk
+          echo 'Samsung S23 arm64-v8a APK verified'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: samsung-s23-arm64-debug-apk
+          if-no-files-found: error
+          retention-days: 30
+          path: |
+            build/app/outputs/flutter-apk/app-arm64-v8a-debug.apk
+            build/app/outputs/flutter-apk/app-arm64-v8a-debug.apk.sha256
+
           cd "$OUT"
           sha256sum app-arm64-v8a-debug.apk > app-arm64-v8a-debug.apk.sha256
           ls -lh app-arm64-v8a-debug.apk

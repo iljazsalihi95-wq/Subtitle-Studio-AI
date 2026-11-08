@@ -158,9 +158,10 @@ jobs:
           set -e
           OUT=build/app/outputs/flutter-apk
           test -s "$OUT/app-arm64-v8a-debug.apk"
-          unzip -l "$OUT/app-arm64-v8a-debug.apk" | grep -q 'lib/arm64-v8a/libflutter.so'
           unzip -tq "$OUT/app-arm64-v8a-debug.apk" >/dev/null
-          unzip -Z1 "$OUT/app-arm64-v8a-debug.apk" | grep -Eq '^classes[0-9]*\.dex          cd "$OUT"
+          unzip -l "$OUT/app-arm64-v8a-debug.apk" | grep -q 'lib/arm64-v8a/libflutter.so'
+          unzip -Z1 "$OUT/app-arm64-v8a-debug.apk" | grep -Fq 'classes.dex'
+          cd "$OUT"
           sha256sum app-arm64-v8a-debug.apk > app-arm64-v8a-debug.apk.sha256
           ls -lh app-arm64-v8a-debug.apk
           echo 'Samsung S23 arm64-v8a APK verified'

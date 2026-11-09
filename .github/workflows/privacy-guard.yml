@@ -1,0 +1,45 @@
+name: Privacy guard
+on:
+  push:
+    branches: [main]
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Reject tracked credentials and private documents
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import re, subprocess, sys
+          from pathlib import Path
+          paths = subprocess.check_output(['git','ls-files','-z']).decode().split('\0')
+          forbidden_names = re.compile(r'(^|/)(\.env(\..+)?|google-services\.json|key\.properties|.*\.(jks|keystore|p12|pfx|pem|key))$', re.I)
+          private_paths = re.compile(r'(^|/)(private|personal-documents|credentials|secrets)/', re.I)
+          secret_patterns = [
+              re.compile(rb'-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----'),
+              re.compile(rb'gh[pousr]_[A-Za-z0-9_]{30,}'),
+              re.compile(rb'sk-proj-[A-Za-z0-9_-]{20,}'),
+          ]
+          violations = []
+          for name in filter(None, paths):
+              if forbidden_names.search(name) or private_paths.search(name):
+                  violations.append(name + ' (sensitive path)')
+                  continue
+              path = Path(name)
+              if not path.is_file() or path.stat().st_size > 2_000_000:
+                  continue
+              data = path.read_bytes()
+              if any(pattern.search(data) for pattern in secret_patterns):
+                  violations.append(name + ' (credential signature)')
+          if violations:
+              print('::error::Sensitive tracked content detected. No secret values are printed.')
+              for item in violations: print('::error::' + item)
+              sys.exit(1)
+          print('Privacy guard passed: no matching tracked secrets or private paths.')
+          PY

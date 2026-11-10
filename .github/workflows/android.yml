@@ -16,6 +16,26 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
+      - name: Block tracked private credentials in public build sources
+        run: |
+          python3 - <<'PY'
+          import subprocess
+          from pathlib import PurePosixPath
+          tracked = subprocess.check_output(['git', 'ls-files', '-z']).decode().split('\\0')
+          blocked = []
+          for name in tracked:
+              if not name:
+                  continue
+              p = PurePosixPath(name)
+              lower = p.name.lower()
+              if (lower in {'.env', '.env.production', '.env.local', 'google-services.json', 'googleservice-info.plist', 'key.properties'}
+                  or lower.endswith(('.jks', '.keystore', '.p12', '.pfx', '.pem'))
+                  or lower.startswith('id_rsa')):
+                  blocked.append(name)
+          if blocked:
+              raise SystemExit('Private credential file paths are tracked; remove them before building: ' + ', '.join(blocked))
+          print('No known private credential file types tracked in source')
+          PY
       - uses: subosito/flutter-action@v2
         with:
           channel: stable

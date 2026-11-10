@@ -28,12 +28,13 @@ jobs:
                   continue
               p = PurePosixPath(name)
               lower = p.name.lower()
-              if (lower in {'.env', '.env.production', '.env.local', 'google-services.json', 'googleservice-info.plist', 'key.properties'}
-                  or lower.endswith(('.jks', '.keystore', '.p12', '.pfx', '.pem'))
-                  or lower.startswith('id_rsa')):
+              if (lower == '.env' or lower.startswith('.env.')
+                  or lower in {'google-services.json', 'googleservice-info.plist', 'key.properties', 'service-account.json', 'credentials.json'}
+                  or lower.endswith(('.jks', '.keystore', '.p12', '.pfx', '.pem', '.key'))
+                  or lower.startswith(('id_rsa', 'id_ed25519'))):
                   blocked.append(name)
           if blocked:
-              raise SystemExit('Private credential file paths are tracked; remove them before building: ' + ', '.join(blocked))
+              raise SystemExit(f'{len(blocked)} potentially private credential file(s) tracked; remove and rotate any exposed secrets before building')
           print('No known private credential file types tracked in source')
           PY
       - uses: subosito/flutter-action@v2

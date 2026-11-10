@@ -75,11 +75,12 @@ class MainActivity : FlutterActivity() {
                 buffer.clear()
                 val size = extractor.readSampleData(buffer, 0)
                 if (size < 0) break
-                info.set(0, size, timestamp - firstUs, 0)
+                info.set(0, size, timestamp - firstUs, extractor.sampleFlags)
                 writer.writeSampleData(destination, buffer, info)
                 bytes += size
                 extractor.advance()
             }
+            require(bytes > 0L) { "Nuk u gjet audio në segmentin e kërkuar." }
             val next = extractor.sampleTime
             writer.stop()
             writer.release()

@@ -9,6 +9,7 @@ import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 import java.io.File
 import java.nio.ByteBuffer
+import java.io.FileNotFoundException
 import java.util.concurrent.Executors
 
 class MainActivity : FlutterActivity() {
@@ -47,7 +48,9 @@ class MainActivity : FlutterActivity() {
         var output: File? = null
         var completed = false
         try {
-            extractor.setDataSource(path)
+            val source = File(path)
+            if (!source.isFile || !source.canRead()) throw FileNotFoundException("Videoja nuk gjendet ose nuk mund të lexohet.")
+            extractor.setDataSource(source.absolutePath)
             val track = (0 until extractor.trackCount).firstOrNull {
                 extractor.getTrackFormat(it).getString(MediaFormat.KEY_MIME)?.startsWith("audio/") == true
             } ?: throw IllegalArgumentException("Videoja nuk ka pistë audio.")
@@ -82,6 +85,8 @@ class MainActivity : FlutterActivity() {
             }
             require(bytes > 0L) { "Nuk u gjet audio në segmentin e kërkuar." }
             val next = extractor.sampleTime
+            // Never return a cursor that cannot advance: Flutter may request chunks in a loop.
+            require(next < 0 || next > startUs) { "Segmenti audio nuk përparoi; provo një video tjetër." }
             writer.stop()
             writer.release()
             muxer = null

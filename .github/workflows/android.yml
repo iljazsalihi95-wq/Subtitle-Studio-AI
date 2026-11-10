@@ -21,7 +21,7 @@ jobs:
           python3 - <<'PY'
           import subprocess
           from pathlib import PurePosixPath
-          tracked = subprocess.check_output(['git', 'ls-files', '-z']).decode().split('\\0')
+          tracked = subprocess.check_output(['git', 'ls-files', '-z']).decode().split(chr(0))
           blocked = []
           for name in tracked:
               if not name:

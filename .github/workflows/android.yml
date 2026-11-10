@@ -132,7 +132,9 @@ jobs:
           "$AAPT" dump badging "$APK" > /tmp/compiled-apk-badging.txt
           grep -q "^application-icon-" /tmp/compiled-apk-badging.txt
           grep -q "^package: name=" /tmp/compiled-apk-badging.txt
-          echo "Compiled APK launcher resource and package metadata verified"
+          # Verify the user-visible app name inside the built APK, not only the source manifest.
+          grep -Fq "application-label:'Subtitle Studio AI'" /tmp/compiled-apk-badging.txt
+          echo "Compiled APK launcher resource, app label and package metadata verified"
       - name: Verify Samsung S23 APK signing and Android compatibility
         run: |
           set -euo pipefail

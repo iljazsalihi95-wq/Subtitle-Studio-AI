@@ -13,5 +13,6 @@ void main() {
     expect(() => timedSegments([{'start': 3, 'end': 2, 'text': 'x'}], 0), throwsFormatException);
     expect(() => timedSegments([{'start': double.nan, 'end': 2, 'text': 'x'}], 0), throwsFormatException);
     expect(() => timedSegments([{'text': 'x'}], 0), throwsFormatException);
+    expect(() => timedSegments([{'start': 0, 'end': 1, 'text': 'x'}], -1), throwsFormatException);
   });
 }

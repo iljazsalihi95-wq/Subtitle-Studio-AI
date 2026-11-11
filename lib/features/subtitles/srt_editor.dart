@@ -39,11 +39,15 @@ class SubtitleTimelineReport {
 SubtitleTimelineReport validateTimeline(List<SubtitleCue> cues) {
   final overlaps = <int>[];
   final empty = <int>[];
+  // Track the latest end, not just the preceding cue: nested cues can
+  // overlap a later cue even when the immediately preceding cue does not.
+  Duration? latestEnd;
   for (var i = 0; i < cues.length; i++) {
     final cue = cues[i];
     if (cue.original.trim().isEmpty && cue.translation.trim().isEmpty) empty.add(i);
     if ((cue.start.isNegative || cue.end <= cue.start) && !empty.contains(i)) empty.add(i);
-    if (i > 0 && cue.start < cues[i - 1].end) overlaps.add(i);
+    if (latestEnd != null && cue.start < latestEnd) overlaps.add(i);
+    if (latestEnd == null || cue.end > latestEnd) latestEnd = cue.end;
   }
   return SubtitleTimelineReport(overlapIndexes: overlaps, emptyIndexes: empty);
 }

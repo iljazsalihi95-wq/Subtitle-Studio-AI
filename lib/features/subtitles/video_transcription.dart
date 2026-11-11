@@ -55,6 +55,8 @@ Stream<TranscriptionProgress> transcribeVideo(String path, bool Function() cance
   while (!cancelled()) {
     final chunk = await channel.invokeMapMethod<String, dynamic>('extractChunk', {'path': path, 'startUs': position});
     if (chunk == null) throw const FormatException('Nxjerrja e audios nuk u përgjigj.');
+    // Reject invalid timing before uploading audio to the transcription service.
+    // A malformed native chunk must never incur an API request.
     final audioPath = chunk['path'] as String?;
     if (audioPath == null) {
       if (chunk['done'] == true) break;
@@ -62,10 +64,10 @@ Stream<TranscriptionProgress> transcribeVideo(String path, bool Function() cance
     }
     final audio = File(audioPath);
     try {
+      final times = validatedChunkTimes(chunk, position);
       if (cancelled()) break;
       final segments = await transcribeAudio(audio);
       if (cancelled()) break;
-      final times = validatedChunkTimes(chunk, position);
       cues.addAll(timedSegments(segments, times.offsetUs));
       position = times.nextUs;
       yield TranscriptionProgress(List<SubtitleCue>.of(cues), position);

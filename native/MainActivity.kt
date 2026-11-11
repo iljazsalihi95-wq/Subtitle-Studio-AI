@@ -11,6 +11,7 @@ import java.io.File
 import java.nio.ByteBuffer
 import java.io.FileNotFoundException
 import java.util.concurrent.Executors
+import java.util.concurrent.RejectedExecutionException
 
 class MainActivity : FlutterActivity() {
     private val audioExecutor = Executors.newSingleThreadExecutor()
@@ -40,6 +41,11 @@ class MainActivity : FlutterActivity() {
                     }
                 }
             }
+    }
+
+    override fun onDestroy() {
+        audioExecutor.shutdown()
+        super.onDestroy()
     }
 
     private fun extractChunk(path: String, startUs: Long): Map<String, Any> {

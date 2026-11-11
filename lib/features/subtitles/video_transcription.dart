@@ -28,6 +28,20 @@ List<SubtitleCue> timedSegments(List<dynamic> segments, int offsetUs) {
   return cues;
 }
 
+
+/// Validates native chunk metadata before applying timestamps or deleting audio.
+({int offsetUs, int nextUs}) validatedChunkTimes(
+    Map<String, dynamic> chunk, int currentUs) {
+  final offset = chunk['offsetUs'];
+  final next = chunk['nextUs'];
+  if (offset is! int || next is! int ||
+      currentUs < 0 || offset < 0 || offset > currentUs ||
+      next <= currentUs) {
+    throw const FormatException('Koha e pjesës audio është e pavlefshme.');
+  }
+  return (offsetUs: offset, nextUs: next);
+}
+
 class TranscriptionProgress {
   const TranscriptionProgress(this.cues, this.processedUs);
   final List<SubtitleCue> cues;
@@ -51,10 +65,9 @@ Stream<TranscriptionProgress> transcribeVideo(String path, bool Function() cance
       if (cancelled()) break;
       final segments = await transcribeAudio(audio);
       if (cancelled()) break;
-      cues.addAll(timedSegments(segments, (chunk['offsetUs'] as num).toInt()));
-      final next = (chunk['nextUs'] as num).toInt();
-      if (next <= position) throw const FormatException('Audioja nuk po përparon.');
-      position = next;
+      final times = validatedChunkTimes(chunk, position);
+      cues.addAll(timedSegments(segments, times.offsetUs));
+      position = times.nextUs;
       yield TranscriptionProgress(List<SubtitleCue>.of(cues), position);
     } finally {
       if (await audio.exists()) await audio.delete();

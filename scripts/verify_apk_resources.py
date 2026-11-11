@@ -11,7 +11,7 @@ with zipfile.ZipFile(apk) as archive:
     names = archive.namelist()
     assert len(names) == len(set(names)), 'Duplicate APK entries are not allowed'
     assert all(not name.startswith('/') and '..' not in name.split('/') and '\\' not in name for name in names), 'Unsafe APK archive entry path'
-    assert 'classes.dex' in names, 'Android executable bytecode missing'
+    assert 'AndroidManifest.xml' in names, 'Compiled Android manifest missing'\n    assert 'resources.arsc' in names, 'Compiled Android resources missing'\n    assert 'classes.dex' in names, 'Android executable bytecode missing'
     assert any(name.startswith('assets/flutter_assets/') for name in names), 'Flutter app assets missing'
     # Reject accidental packaging of private configuration or signing material.
     private_names = {'google-services.json', 'googleservice-info.plist', 'key.properties',

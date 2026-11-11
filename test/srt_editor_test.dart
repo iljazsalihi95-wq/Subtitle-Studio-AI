@@ -65,4 +65,13 @@ void main() {
     expect(() => parseSubtitles('1\n00:00:61,000 --> 00:01:02,000\nBad'), throwsFormatException);
   });
 
+  test('Nested subtitle overlaps are detected even across a shorter cue', () {
+    final report = validateTimeline(const [
+      SubtitleCue(start: Duration(seconds: 0), end: Duration(seconds: 20), original: 'Long'),
+      SubtitleCue(start: Duration(seconds: 2), end: Duration(seconds: 3), original: 'Short'),
+      SubtitleCue(start: Duration(seconds: 8), end: Duration(seconds: 9), original: 'Still overlapping long'),
+      SubtitleCue(start: Duration(seconds: 21), end: Duration(seconds: 22), original: 'Clear'),
+    ]);
+    expect(report.overlapIndexes, [1, 2]);
+  });
 }

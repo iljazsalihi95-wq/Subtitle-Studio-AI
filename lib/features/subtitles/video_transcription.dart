@@ -35,7 +35,7 @@ List<SubtitleCue> timedSegments(List<dynamic> segments, int offsetUs) {
   final offset = chunk['offsetUs'];
   final next = chunk['nextUs'];
   if (offset is! int || next is! int ||
-      currentUs < 0 || offset < 0 || offset > currentUs ||
+      currentUs < 0 || offset < currentUs || offset >= next ||
       next <= currentUs) {
     throw const FormatException('Koha e pjesës audio është e pavlefshme.');
   }

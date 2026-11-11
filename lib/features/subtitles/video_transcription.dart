@@ -4,6 +4,9 @@ import '../ai/ai_connection.dart';
 import 'srt_editor.dart';
 
 List<SubtitleCue> timedSegments(List<dynamic> segments, int offsetUs) {
+  if (offsetUs < 0) {
+    throw const FormatException('Pozicioni i audios nuk mund të jetë negativ.');
+  }
   final cues = <SubtitleCue>[];
   for (final item in segments) {
     if (item is! Map || item['start'] is! num || item['end'] is! num || item['text'] is! String) {

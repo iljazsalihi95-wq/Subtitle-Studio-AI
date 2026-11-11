@@ -77,7 +77,7 @@ class MainActivity : FlutterActivity() {
                 require(extractor.sampleSize <= buffer.capacity()) { "Paketa audio është tepër e madhe." }
                 buffer.clear()
                 val size = extractor.readSampleData(buffer, 0)
-                if (size < 0) break
+                if (size <= 0) break // Avoid empty samples and a stalled extraction loop.
                 info.set(0, size, timestamp - firstUs, extractor.sampleFlags)
                 writer.writeSampleData(destination, buffer, info)
                 bytes += size

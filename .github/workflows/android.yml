@@ -69,7 +69,12 @@ jobs:
           key: gradle-${{ runner.os }}-${{ hashFiles('android/gradle/wrapper/gradle-wrapper.properties') }}
       - name: Install Android API 36 and set compileSdk
         run: |
-          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platforms;android-36"
+          # yes may exit with SIGPIPE after sdkmanager succeeds; check sdkmanager itself.
+          set +e
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-36"
+          sdk_status=${PIPESTATUS[1]}
+          set -e
+          test "$sdk_status" -eq 0
           python3 - <<'PY'
           from pathlib import Path
           p = Path('android/app/build.gradle.kts')

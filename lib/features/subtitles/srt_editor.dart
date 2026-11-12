@@ -141,7 +141,7 @@ String encodeProject(SubtitleProject project) => jsonEncode({
 });
 
 SubtitleProject decodeProject(String source) {
-  // Accept UTF-8 BOM in project files exported by desktop editors.\n  final data = jsonDecode(source.replaceFirst(RegExp(r'^\\uFEFF'), ''));
+  // Accept UTF-8 BOM in project files exported by desktop editors.\n  final data = jsonDecode((source.startsWith('\\uFEFF') ? source.substring(1) : source));
   if (data is! Map || data['format'] != 'subtitle-studio-ai' || data['version'] != 1 || data['title'] is! String || data['cues'] is! List || (data['videoPath'] != null && data['videoPath'] is! String)) throw const FormatException('Invalid project');
   final cues = <SubtitleCue>[];
   for (final c in data['cues']) {

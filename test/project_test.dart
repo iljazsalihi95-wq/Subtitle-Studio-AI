@@ -19,6 +19,12 @@ void main() {
     final merged = mergeCues(cue, const SubtitleCue(start: Duration(seconds: 5), end: Duration(seconds: 7), original: 'second'));
     expect(merged.translation, 'shqip\nsecond');
   });
+  test('project import accepts UTF-8 BOM without losing cues', () {
+    final encoded = encodeProject(const SubtitleProject(title: 'BOM', cues: [cue]));
+    final restored = decodeProject('\uFEFF$encoded');
+    expect(restored.title, 'BOM');
+    expect(restored.cues.single.translation, 'shqip');
+  });
   test('invalid project timing is rejected', () {
     expect(() => decodeProject('{"format":"subtitle-studio-ai","version":1,"title":"x","cues":[{"start":4,"end":1,"original":"a","translation":"b"}]}'), throwsFormatException);
   });

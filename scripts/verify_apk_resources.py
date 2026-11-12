@@ -44,10 +44,7 @@ with zipfile.ZipFile(apk) as archive:
             assert ImageChops.difference(actual, expected[actual.size]).getbbox() is None, f'Launcher pixels differ: {name}'
             found.add(actual.size)
     assert found == set(expected), 'APK launcher densities do not match generated artwork'
-    frames = sorted(Path('assets/story').glob('frame_*.jpg'))
-    bundled_frames = sorted(name for name in names if name.startswith('assets/flutter_assets/assets/story/') and name.lower().endswith(('.jpg', '.jpeg', '.png', '.webp')))
-    assert bundled_frames == sorted('assets/flutter_assets/' + frame.as_posix() for frame in frames), 'Unexpected or missing bundled story images'
-    for frame in frames:
-        name = 'assets/flutter_assets/' + frame.as_posix()
-        assert archive.read(name) == frame.read_bytes(), f'Illustration missing/changed: {frame.name}'
-    print(f'APK verified: ARM64, {len(found)} matching launcher sizes, {len(frames)} original illustrations')
+    # Subtitle Studio must not accidentally bundle private Living Library story frames.
+    private_story_assets = [name for name in names if name.startswith('assets/flutter_assets/assets/story/')]
+    assert not private_story_assets, 'Unrelated private story images packaged in Subtitle Studio APK'
+    print(f'APK verified: ARM64, {len(found)} matching branded launcher sizes; no Living Library story assets')

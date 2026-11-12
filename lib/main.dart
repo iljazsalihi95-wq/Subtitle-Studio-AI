@@ -90,7 +90,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _resumeProject() async {
-    try { final root = await getApplicationDocumentsDirectory(); final project = decodeProject(await File('${root.path}/last_project.ssai').readAsString()); if (!mounted) return; await Navigator.push(context, MaterialPageRoute<void>(builder: (_) => SubtitlePreviewPage(filename: project.title, cues: project.cues, videoPath: project.videoPath))); }
+    try { final root = await getApplicationDocumentsDirectory(); final project = decodeProject((await File('${root.path}/last_project.ssai').readAsString()).replaceFirst(RegExp(r'^\uFEFF'), '')); if (!mounted) return; await Navigator.push(context, MaterialPageRoute<void>(builder: (_) => SubtitlePreviewPage(filename: project.title, cues: project.cues, videoPath: project.videoPath))); }
     catch (_) { if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Nuk ka projekt automatik të ruajtur në këtë pajisje.'))); }
   }
   Future<void> _openProject() async {

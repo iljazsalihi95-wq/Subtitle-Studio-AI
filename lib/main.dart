@@ -83,6 +83,9 @@ class _HomePageState extends State<HomePage> {
         return;
       }
       await Navigator.push(context, MaterialPageRoute<void>(builder: (_) => SubtitlePreviewPage(filename: file.name, cues: cues)));
+    } on FormatException {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Skedari nuk është UTF-8 i vlefshëm ose përmban titra të dëmtuar.')));
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Titrat nuk mund të hapeshin.')));

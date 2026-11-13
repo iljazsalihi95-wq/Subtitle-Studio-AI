@@ -24,6 +24,18 @@ with zipfile.ZipFile(apk) as archive:
         assert not (basename == '.env' or basename.startswith('.env.')
                     or basename in private_names or basename.endswith(private_suffixes)), (
             f'Potential private configuration packaged in APK: {entry}')
+    # Public CI artifacts must never contain imported user documents or media.
+    # Approved bundled story artwork is checked separately below.
+    private_extensions = ('.srt', '.vtt', '.ass', '.ssa', '.pdf', '.epub',
+                          '.doc', '.docx', '.mp4', '.mov', '.m4a', '.mp3',
+                          '.sqlite', '.sqlite3', '.db', '.zip', '.7z')
+    private_payloads = [
+        name for name in names
+        if name.startswith(('assets/', 'res/raw/', 'flutter_assets/'))
+        and name.lower().endswith(private_extensions)
+    ]
+    assert not private_payloads, (
+        f'Imported user document/media accidentally bundled into public APK: {private_payloads}')
     assert 'lib/arm64-v8a/libflutter.so' in names, 'ARM64 Flutter runtime missing'
     # Validate the ELF header, not only the filename: Samsung S23 requires AArch64.
     for entry in [name for name in names if name.startswith('lib/arm64-v8a/') and name.endswith('.so')]:

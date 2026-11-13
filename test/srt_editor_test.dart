@@ -74,4 +74,14 @@ void main() {
     ]);
     expect(report.overlapIndexes, [1, 2]);
   });
+  test('Unsorted subtitle overlaps return original editor indexes', () {
+    final report = validateTimeline(const [
+      SubtitleCue(start: Duration(seconds: 10), end: Duration(seconds: 12), original: 'Later'),
+      SubtitleCue(start: Duration(seconds: 1), end: Duration(seconds: 11), original: 'Earlier long'),
+      SubtitleCue(start: Duration(seconds: 13), end: Duration(seconds: 14), original: 'Clear'),
+    ]);
+    expect(report.overlapIndexes, [0]);
+    expect(report.emptyIndexes, isEmpty);
+  });
+
 }

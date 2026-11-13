@@ -162,6 +162,17 @@ jobs:
           "$AAPT" dump badging "$APK" > /tmp/compiled-apk-badging.txt
           grep -q "^application-icon-" /tmp/compiled-apk-badging.txt
           grep -q "^package: name=" /tmp/compiled-apk-badging.txt
+          # The launcher must resolve to a real Activity and to our branded mipmap.
+          grep -q "^launchable-activity:" /tmp/compiled-apk-badging.txt
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          text = Path('/tmp/compiled-apk-badging.txt').read_text()
+          icons = re.findall(r"^application-icon-\d+:'([^']+)'", text, re.M)
+          assert icons, 'No density-specific launcher icons packaged'
+          assert all('ic_launcher.png' in icon and 'mipmap-' in icon for icon in icons), f'Unexpected launcher icons: {icons}'
+          print(f'Launchable activity and {len(icons)} branded launcher icon paths verified')
+          PY
           # Verify the user-visible app name inside the built APK, not only the source manifest.
           grep -Fq "application-label:'Subtitle Studio AI'" /tmp/compiled-apk-badging.txt
           echo "Compiled APK launcher resource, app label and package metadata verified"

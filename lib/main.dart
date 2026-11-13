@@ -106,7 +106,7 @@ class _HomePageState extends State<HomePage> {
       }
       final raw = await selected.readAsBytes();
       if (raw.length > 20 * 1024 * 1024) throw const FormatException('Projekt tepër i madh');
-      final project = decodeProject(utf8.decode(raw).replaceFirst(RegExp(r'^\uFEFF'), ''));
+      final project = decodeProject(utf8.decode(raw, allowMalformed: false).replaceFirst(RegExp(r'^\uFEFF'), ''));
       if (!mounted) return;
       await Navigator.push(context, MaterialPageRoute<void>(builder: (_) => SubtitlePreviewPage(filename: project.title, cues: project.cues, videoPath: project.videoPath)));
     } catch (_) {

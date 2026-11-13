@@ -138,6 +138,8 @@ jobs:
           PY
       - name: Test authenticated AI proxy
         run: node --test backend/test/worker.test.mjs
+      - name: Clean generated Flutter build outputs before dependency resolution
+        run: flutter clean
       - run: flutter pub get
       # Flutter stable currently reports framework material imports as deprecation infos.
       # Keep analyzer errors and warnings fatal while allowing informational diagnostics.

@@ -38,6 +38,34 @@ class StudioApp extends StatelessWidget {
               fontWeight: states.contains(WidgetState.selected) ? FontWeight.w700 : FontWeight.w500,
             )),
           ),
+          appBarTheme: const AppBarTheme(
+            backgroundColor: Color(0xFF0D2034),
+            foregroundColor: Color(0xFFE8C170),
+            centerTitle: false,
+            elevation: 0,
+          ),
+          inputDecorationTheme: InputDecorationTheme(
+            filled: true,
+            fillColor: const Color(0xFF0D2034),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: const BorderSide(color: Color(0xFF31455B)),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: const BorderSide(color: Color(0xFF31455B)),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: const BorderSide(color: Color(0xFFE8C170), width: 1.5),
+            ),
+          ),
+          snackBarTheme: SnackBarThemeData(
+            backgroundColor: const Color(0xFF0D2034),
+            contentTextStyle: const TextStyle(color: Colors.white),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
           useMaterial3: true,
         ),
         home: const HomePage(),

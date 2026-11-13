@@ -13,6 +13,16 @@ void main() {
     expect(find.text('Studio me video'), findsOneWidget);
   });
 
+  testWidgets('Studio tab opens an editable project without selecting video', (tester) async {
+    await tester.pumpWidget(const StudioApp());
+    await tester.pump();
+
+    await tester.tap(find.text('Studio').last);
+    await tester.pumpAndSettle();
+
+    expect(find.byType(SubtitlePreviewPage), findsOneWidget);
+  });
+
   testWidgets('Subtitle editor shows timeline overlap warning', (tester) async {
     await tester.pumpWidget(const MaterialApp(
       home: SubtitlePreviewPage(

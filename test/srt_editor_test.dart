@@ -55,6 +55,17 @@ void main() {
     expect(() => shiftSubtitleTiming(cues, const Duration(milliseconds: -200)), throwsFormatException);
   });
 
+  test('shift rejects reversed or zero-length cue intervals', () {
+    final invalid = [
+      SubtitleCue(start: const Duration(seconds: 4), end: const Duration(seconds: 3), original: 'Invalid'),
+    ];
+    expect(() => shiftSubtitleTiming(invalid, const Duration(seconds: 2)), throwsFormatException);
+    final zeroLength = [
+      SubtitleCue(start: const Duration(seconds: 2), end: const Duration(seconds: 2), original: 'Invalid'),
+    ];
+    expect(() => shiftSubtitleTiming(zeroLength, Duration.zero), throwsFormatException);
+  });
+
   test('UTF-8 BOM and Windows newlines preserve first SRT cue', () {
     final cues = parseSubtitles('\uFEFF1\r\n00:00:01,000 --> 00:00:02,000\r\nPërshëndetje');
     expect(cues, hasLength(1));

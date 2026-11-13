@@ -76,7 +76,7 @@ class _HomePageState extends State<HomePage> {
       }
       final bytes = await file.readAsBytes();
       if (bytes.length > 20 * 1024 * 1024) throw const FormatException('Skedari i titrave është mbi 20 MB');
-      final cues = parseSubtitles(utf8.decode(bytes).replaceFirst(RegExp(r'^\uFEFF'), ''));
+      final cues = parseSubtitles(utf8.decode(bytes, allowMalformed: false).replaceFirst(RegExp(r'^\uFEFF'), ''));
       if (!mounted) return;
       if (cues.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Nuk u gjet asnjë titër i vlefshëm SRT/VTT.')));

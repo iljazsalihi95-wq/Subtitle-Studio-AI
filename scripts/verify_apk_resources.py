@@ -26,6 +26,10 @@ with zipfile.ZipFile(apk) as archive:
             f'Potential private configuration packaged in APK: {entry}')
     assert 'lib/arm64-v8a/libflutter.so' in names, 'ARM64 Flutter runtime missing'
     assert not any(name.startswith(('lib/x86', 'lib/armeabi')) for name in names), 'Unexpected non-ARM64 runtime'
+    # Android 8+ may prefer an adaptive XML icon over PNG launcher artwork.
+    # Check the compiled APK, not just the generated source directory.
+    adaptive_icons = [name for name in names if name.startswith('res/') and name.endswith('/ic_launcher.xml')]
+    assert not adaptive_icons, f'Adaptive launcher may override branded icon: {adaptive_icons}'
     icons = [name for name in names if name.startswith('res/') and name.endswith('/ic_launcher.png')]
     assert len(icons) == 5, f'Expected exactly five launcher icons, found {len(icons)}'
     expected = {}

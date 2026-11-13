@@ -1,6 +1,6 @@
 """Render an original premium Subtitle Studio AI launcher mark (no external assets)."""
 from pathlib import Path
-from PIL import Image, ImageDraw, ImageFilter
+from PIL import Image, ImageDraw
 
 SIZE = 1024
 SCALE = 4
@@ -39,8 +39,11 @@ rect((380, 543, 644, 571), 14, gold)
 # Playback/timeline accent.
 d.ellipse((465*SCALE, 788*SCALE, 559*SCALE, 882*SCALE), fill=gold)
 im = im.resize((SIZE, SIZE), Image.Resampling.LANCZOS)
+assert im.getbbox() is not None, "Launcher artwork is empty"
 for density, px in (("mdpi",48),("hdpi",72),("xhdpi",96),("xxhdpi",144),("xxxhdpi",192)):
     out = Path("android/app/src/main/res") / f"mipmap-{density}" / "ic_launcher.png"
     out.parent.mkdir(parents=True, exist_ok=True)
-    im.resize((px,px), Image.Resampling.LANCZOS).save(out)
+    icon = im.resize((px,px), Image.Resampling.LANCZOS)
+    assert icon.size == (px, px)
+    icon.save(out)
 print("Generated original premium Subtitle Studio AI launcher icons")

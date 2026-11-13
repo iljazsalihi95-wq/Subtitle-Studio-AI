@@ -23,6 +23,11 @@ class StudioApp extends StatelessWidget {
           brightness: Brightness.dark,
           scaffoldBackgroundColor: const Color(0xFF07111F),
           colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFFE8C170), brightness: Brightness.dark),
+          textSelectionTheme: TextSelectionThemeData(
+            cursorColor: const Color(0xFFE8C170),
+            selectionColor: const Color(0xFFE8C170).withValues(alpha: 0.28),
+            selectionHandleColor: const Color(0xFFE8C170),
+          ),
           useMaterial3: true,
         ),
         home: const HomePage(),

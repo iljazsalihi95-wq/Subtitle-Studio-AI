@@ -129,7 +129,7 @@ class _HomePageState extends State<HomePage> {
       _Action(icon: Icons.ios_share_outlined, title: 'Hap projektin për eksport', subtitle: 'Rikthe projektin e fundit, pastaj eksporto SRT • VTT', onTap: _resumeProject),
       const SizedBox(height: 18), const _Status(),
     ])),
-    bottomNavigationBar: NavigationBar(selectedIndex: 0, onDestinationSelected: (index) { if (index == 1) { _openVideoStudio(); } else if (index == 2) { configureAi(context); } else if (index == 3) { _openProject(); } }, destinations: const [
+    bottomNavigationBar: NavigationBar(selectedIndex: 0, onDestinationSelected: (index) { if (index == 1) { _newSubtitleProject(); } else if (index == 2) { configureAi(context); } else if (index == 3) { _openProject(); } }, destinations: const [
       NavigationDestination(icon: Icon(Icons.home_outlined), selectedIcon: Icon(Icons.home), label: 'Ballina'),
       NavigationDestination(icon: Icon(Icons.subtitles_outlined), label: 'Studio'),
       NavigationDestination(icon: Icon(Icons.auto_awesome_outlined), label: 'AI'),

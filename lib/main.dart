@@ -100,7 +100,11 @@ class _HomePageState extends State<HomePage> {
     try {
       final files = await FilePicker.pickFiles(type: FileType.custom, allowedExtensions: ['ssai']);
       if (!mounted || files.isEmpty) return;
-      final raw = await files.single.readAsBytes();
+      final selected = files.single;
+      if (selected.path != null && await File(selected.path!).length() > 20 * 1024 * 1024) {
+        throw const FormatException('Projekt tepër i madh');
+      }
+      final raw = await selected.readAsBytes();
       if (raw.length > 20 * 1024 * 1024) throw const FormatException('Projekt tepër i madh');
       final project = decodeProject(utf8.decode(raw).replaceFirst(RegExp(r'^\uFEFF'), ''));
       if (!mounted) return;

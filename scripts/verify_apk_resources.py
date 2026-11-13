@@ -25,6 +25,12 @@ with zipfile.ZipFile(apk) as archive:
                     or basename in private_names or basename.endswith(private_suffixes)), (
             f'Potential private configuration packaged in APK: {entry}')
     assert 'lib/arm64-v8a/libflutter.so' in names, 'ARM64 Flutter runtime missing'
+    # Validate the ELF header, not only the filename: Samsung S23 requires AArch64.
+    for entry in [name for name in names if name.startswith('lib/arm64-v8a/') and name.endswith('.so')]:
+        header = archive.read(entry)[:20]
+        assert len(header) >= 20 and header[:4] == b'\x7fELF', f'Invalid native ELF: {entry}'
+        assert header[4] == 2 and header[5] == 1, f'Expected 64-bit little-endian ELF: {entry}'
+        assert int.from_bytes(header[18:20], 'little') == 183, f'Expected AArch64 machine type: {entry}'
     assert not any(name.startswith(('lib/x86', 'lib/armeabi')) for name in names), 'Unexpected non-ARM64 runtime'
     # Android 8+ may prefer an adaptive XML icon over PNG launcher artwork.
     # Check the compiled APK, not just the generated source directory.

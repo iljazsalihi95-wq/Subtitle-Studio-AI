@@ -184,8 +184,8 @@ jobs:
           match = re.search(r"sdkVersion:'(\d+)'", text)
           assert match, 'Missing minSdkVersion in APK'
           minimum = int(match.group(1))
-          assert minimum <= 34, f'APK requires Android API {minimum}, higher than Galaxy S23 Android 14'
-          print(f'APK signed and minSdk={minimum}; compatible with Android 14 API 34')
+          assert minimum <= 33, f'APK requires Android API {minimum}, higher than Galaxy S23 launch Android 13 (API 33)'
+          print(f'APK signed and minSdk={minimum}; supports Galaxy S23 from Android 13 (API 33)')
           PY
       - name: Verify APKs and produce SHA-256 checksums
         run: |

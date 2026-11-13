@@ -35,11 +35,11 @@ with zipfile.ZipFile(apk) as archive:
         assert path.is_file(), f'Missing source launcher: {path}'
         with Image.open(path) as image:
             assert image.size == (size, size), f'Incorrect source launcher size: {path}'
-            expected[(size, size)] = image.convert('RGBA').copy()
+            expected[(size, size)] = image.convert('RGB').copy()
     found = set()
     for name in icons:
         with Image.open(io.BytesIO(archive.read(name))) as image:
-            actual = image.convert('RGBA')
+            actual = image.convert('RGB')
             assert actual.size in expected, f'Unexpected launcher size: {name}'
             assert ImageChops.difference(actual, expected[actual.size]).getbbox() is None, f'Launcher pixels differ: {name}'
             found.add(actual.size)

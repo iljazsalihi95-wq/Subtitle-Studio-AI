@@ -43,3 +43,15 @@ key.properties
 **/*.db-wal
 **/*.db-shm
 **/*.srt.bak
+
+# Personal media and exports must remain local during private Android testing
+/personal-media/
+/imported-books/
+/imported-videos/
+/exports/
+**/personal-media/
+**/imported-books/
+**/imported-videos/
+**/exports/
+*.srt.bak
+*.vtt.bak

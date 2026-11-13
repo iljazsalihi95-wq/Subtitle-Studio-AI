@@ -28,6 +28,16 @@ class StudioApp extends StatelessWidget {
             selectionColor: const Color(0xFFE8C170).withValues(alpha: 0.28),
             selectionHandleColor: const Color(0xFFE8C170),
           ),
+          navigationBarTheme: NavigationBarThemeData(
+            backgroundColor: const Color(0xFF0D2034),
+            indicatorColor: const Color(0xFFE8C170).withValues(alpha: 0.20),
+            iconTheme: WidgetStateProperty.resolveWith((states) =>
+              IconThemeData(color: states.contains(WidgetState.selected) ? const Color(0xFFE8C170) : const Color(0xFFB7C2D0))),
+            labelTextStyle: WidgetStateProperty.resolveWith((states) => TextStyle(
+              color: states.contains(WidgetState.selected) ? const Color(0xFFE8C170) : const Color(0xFFB7C2D0),
+              fontWeight: states.contains(WidgetState.selected) ? FontWeight.w700 : FontWeight.w500,
+            )),
+          ),
           useMaterial3: true,
         ),
         home: const HomePage(),

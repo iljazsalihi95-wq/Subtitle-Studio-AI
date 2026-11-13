@@ -39,16 +39,27 @@ class SubtitleTimelineReport {
 SubtitleTimelineReport validateTimeline(List<SubtitleCue> cues) {
   final overlaps = <int>[];
   final empty = <int>[];
-  // Track the latest end, not just the preceding cue: nested cues can
-  // overlap a later cue even when the immediately preceding cue does not.
-  Duration? latestEnd;
+  // Validate emptiness in editor order, but detect overlaps chronologically:
+  // imported cues can be out of order. Return original editor indexes.
   for (var i = 0; i < cues.length; i++) {
     final cue = cues[i];
-    if (cue.original.trim().isEmpty && cue.translation.trim().isEmpty) empty.add(i);
-    if ((cue.start.isNegative || cue.end <= cue.start) && !empty.contains(i)) empty.add(i);
-    if (latestEnd != null && cue.start < latestEnd) overlaps.add(i);
+    if ((cue.original.trim().isEmpty && cue.translation.trim().isEmpty) ||
+        cue.start.isNegative || cue.end <= cue.start) {
+      empty.add(i);
+    }
+  }
+  final order = List<int>.generate(cues.length, (i) => i)
+    ..sort((a, b) {
+      final byStart = cues[a].start.compareTo(cues[b].start);
+      return byStart != 0 ? byStart : a.compareTo(b);
+    });
+  Duration? latestEnd;
+  for (final index in order) {
+    final cue = cues[index];
+    if (latestEnd != null && cue.start < latestEnd) overlaps.add(index);
     if (latestEnd == null || cue.end > latestEnd) latestEnd = cue.end;
   }
+  overlaps.sort();
   return SubtitleTimelineReport(overlapIndexes: overlaps, emptyIndexes: empty);
 }
 

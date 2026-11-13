@@ -57,14 +57,19 @@ Stream<TranscriptionProgress> transcribeVideo(String path, bool Function() cance
     if (chunk == null) throw const FormatException('Nxjerrja e audios nuk u përgjigj.');
     // Reject invalid timing before uploading audio to the transcription service.
     // A malformed native chunk must never incur an API request.
-    final audioPath = chunk['path'] as String?;
-    if (audioPath == null) {
-      if (chunk['done'] == true) break;
+    final audioPath = chunk['path'];
+    if (audioPath == null && chunk['done'] == true) break;
+    if (audioPath is! String || audioPath.trim().isEmpty) {
       throw const FormatException('Audioja nuk u krijua.');
     }
+    // Never send an invalid or missing native output to the AI service.
+    // Validate timing before touching the temporary file.
+    final times = validatedChunkTimes(chunk, position);
     final audio = File(audioPath);
+    if (!await audio.exists() || !await audio.stat().then((s) => s.type == FileSystemEntityType.file && s.size > 0)) {
+      throw const FormatException('Skedari audio mungon ose është bosh.');
+    }
     try {
-      final times = validatedChunkTimes(chunk, position);
       if (cancelled()) break;
       final segments = await transcribeAudio(audio);
       if (cancelled()) break;

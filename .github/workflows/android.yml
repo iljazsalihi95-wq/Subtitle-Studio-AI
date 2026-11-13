@@ -197,6 +197,8 @@ jobs:
           unzip -Z1 "$OUT/app-arm64-v8a-debug.apk" | grep -Fq 'classes.dex'
           cd "$OUT"
           sha256sum app-arm64-v8a-debug.apk > app-arm64-v8a-debug.apk.sha256
+          sha256sum --check --strict app-arm64-v8a-debug.apk.sha256
+          echo "Verified SHA-256 checksum for commit $GITHUB_SHA"
           ls -lh app-arm64-v8a-debug.apk
           echo 'Samsung S23 arm64-v8a APK verified'
       - uses: actions/upload-artifact@v4

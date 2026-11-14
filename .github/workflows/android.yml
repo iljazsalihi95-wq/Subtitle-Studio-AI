@@ -91,7 +91,7 @@ jobs:
           text = re.sub(r'android:label="[^"]*"', 'android:label="Subtitle Studio AI"', text, count=1)
           # Keep imported documents, subtitle projects and app preferences out of
           # Android cloud/device backups by default.
-          text = re.sub(r'\\sandroid:allowBackup="[^"]*"', '', text, count=1)
+          text = re.sub(r'\sandroid:allowBackup="[^"]*"', '', text, count=1)
           text = text.replace('<application', '<application android:allowBackup="false"', 1)
           assert text.count('android:allowBackup="false"') == 1
           manifest.write_text(text)

@@ -16,6 +16,17 @@ void main() {
     expect(cues.single.start.inMilliseconds, 3723400);
   });
 
+  test('round-trips WebVTT after the first hour without losing timing', () {
+    const source = 'WEBVTT\n\n61:02.125 --> 61:05.750\nVargu i parë';
+    final imported = parseSubtitles(source);
+    expect(imported.single.start.inMilliseconds, 3662125);
+    final exported = exportVtt(imported);
+    final restored = parseSubtitles(exported);
+    expect(restored.single.start, imported.single.start);
+    expect(restored.single.end, imported.single.end);
+    expect(restored.single.original, imported.single.original);
+  });
+
   test('rejects invalid short timestamp seconds', () {
     expect(() => parseSubtitles('WEBVTT\n\n00:61.000 --> 00:62.000\nGabim'), throwsFormatException);
   });

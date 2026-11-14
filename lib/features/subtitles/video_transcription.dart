@@ -62,14 +62,15 @@ Stream<TranscriptionProgress> transcribeVideo(String path, bool Function() cance
     if (audioPath is! String || audioPath.trim().isEmpty) {
       throw const FormatException('Audioja nuk u krijua.');
     }
-    // Never send an invalid or missing native output to the AI service.
-    // Validate timing before touching the temporary file.
-    final times = validatedChunkTimes(chunk, position);
+    // Always clean up the native temporary audio, including invalid metadata,
+    // empty files and cancellation before the API request.
     final audio = File(audioPath);
-    if (!await audio.exists() || !await audio.stat().then((s) => s.type == FileSystemEntityType.file && s.size > 0)) {
-      throw const FormatException('Skedari audio mungon ose është bosh.');
-    }
     try {
+      final times = validatedChunkTimes(chunk, position);
+      if (!await audio.exists() ||
+          !await audio.stat().then((s) => s.type == FileSystemEntityType.file && s.size > 0)) {
+        throw const FormatException('Skedari audio mungon ose është bosh.');
+      }
       if (cancelled()) break;
       final segments = await transcribeAudio(audio);
       if (cancelled()) break;

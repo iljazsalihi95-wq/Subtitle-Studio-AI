@@ -57,6 +57,9 @@ SubtitleTimelineReport validateTimeline(List<SubtitleCue> cues) {
   Duration? latestEnd;
   for (final index in order) {
     final cue = cues[index];
+    // Invalid intervals are already reported separately; do not let them
+    // create misleading overlap warnings for otherwise valid cues.
+    if (cue.start.isNegative || cue.end <= cue.start) continue;
     if (latestEnd != null && cue.start < latestEnd) overlaps.add(index);
     if (latestEnd == null || cue.end > latestEnd) latestEnd = cue.end;
   }

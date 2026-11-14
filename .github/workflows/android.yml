@@ -89,7 +89,7 @@ jobs:
           manifest = Path('android/app/src/main/AndroidManifest.xml')
           text = manifest.read_text()
           text = re.sub(r'android:label="[^"]*"', 'android:label="Subtitle Studio AI"', text, count=1)
-          # Keep imported books, subtitle projects and app preferences out of
+          # Keep imported documents, subtitle projects and app preferences out of
           # Android cloud/device backups by default.
           text = re.sub(r'\\sandroid:allowBackup="[^"]*"', '', text, count=1)
           text = text.replace('<application', '<application android:allowBackup="false"', 1)

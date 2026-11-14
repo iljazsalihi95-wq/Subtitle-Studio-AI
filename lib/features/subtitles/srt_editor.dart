@@ -71,7 +71,16 @@ String _timestamp(Duration time) {
   final milliseconds = (time.inMilliseconds % 1000).toString().padLeft(3, '0');
   return '$hours:$minutes:$seconds,$milliseconds';
 }
+void _validateExportTiming(List<SubtitleCue> cues) {
+  for (final cue in cues) {
+    if (cue.start.isNegative || cue.end <= cue.start) {
+      throw const FormatException('Cannot export a subtitle with invalid timing');
+    }
+  }
+}
+
 String exportSrt(List<SubtitleCue> cues, {bool translated = true}) {
+  _validateExportTiming(cues);
   return cues.asMap().entries.map((entry) {
     final cue = entry.value;
     final text = translated && cue.translation.trim().isNotEmpty ? cue.translation : cue.original;
@@ -81,6 +90,7 @@ String exportSrt(List<SubtitleCue> cues, {bool translated = true}) {
 
 /// Exports WebVTT without changing the source cue timings.
 String exportVtt(List<SubtitleCue> cues, {bool translated = true}) {
+  _validateExportTiming(cues);
   final body = cues.map((cue) {
     final text = translated && cue.translation.trim().isNotEmpty ? cue.translation : cue.original;
     final start = _timestamp(cue.start).replaceAll(',', '.');

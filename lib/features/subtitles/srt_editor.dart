@@ -169,3 +169,14 @@ SubtitleCue mergeCues(SubtitleCue first, SubtitleCue second) {
   String combine(String a, String b) => [a, b].where((s) => s.trim().isNotEmpty).join('\n');
   return SubtitleCue(start: first.start < second.start ? first.start : second.start, end: first.end > second.end ? first.end : second.end, original: combine(first.original, second.original), translation: combine(first.translation.isEmpty ? first.original : first.translation, second.translation.isEmpty ? second.original : second.translation));
 }
+
+/// Returns the cue active at [position], or null in a subtitle gap.
+/// Start is inclusive and end exclusive, matching video playback timelines.
+/// Overlapping cues are resolved in editor order.
+SubtitleCue? cueAtPosition(List<SubtitleCue> cues, Duration position) {
+  if (position.isNegative) return null;
+  for (final cue in cues) {
+    if (cue.start <= position && position < cue.end) return cue;
+  }
+  return null;
+}

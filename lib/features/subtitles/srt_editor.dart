@@ -178,7 +178,9 @@ SubtitleProject decodeProject(String source) {
 }
 
 List<SubtitleCue> splitCue(SubtitleCue cue, Duration position) {
-  if (position <= cue.start || position >= cue.end) throw const FormatException('Split outside cue');
+  if (cue.start.isNegative || cue.end <= cue.start || position <= cue.start || position >= cue.end) {
+    throw const FormatException('Split outside valid cue interval');
+  }
   return [SubtitleCue(start: cue.start, end: position, original: cue.original, translation: cue.translation), SubtitleCue(start: position, end: cue.end, original: cue.original, translation: cue.translation)];
 }
 SubtitleCue mergeCues(SubtitleCue first, SubtitleCue second) {

@@ -99,7 +99,7 @@ Duration _parseTimestamp(String value) {
   final minutes = int.parse(match.group(2)!);
   final seconds = int.parse(match.group(3)!);
   final milliseconds = int.parse(match.group(4)!);
-  if (minutes >= 60 || seconds >= 60) {
+  if ((match.group(1) != null && minutes >= 60) || seconds >= 60) {
     throw FormatException('Invalid subtitle timestamp: $value');
   }
   return Duration(hours: hours, minutes: minutes, seconds: seconds, milliseconds: milliseconds);

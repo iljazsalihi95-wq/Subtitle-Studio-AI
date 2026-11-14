@@ -160,6 +160,22 @@ jobs:
           assert not (base / 'mipmap-anydpi-v26/ic_launcher.xml').exists(), 'Default adaptive icon overrides artwork'
           print('Verified branded icon artwork in all five launcher densities')
           PY
+      - name: Verify Samsung round icons match branded launcher pixels
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          from PIL import Image, ImageChops
+          base = Path('android/app/src/main/res')
+          for density in ('mdpi', 'hdpi', 'xhdpi', 'xxhdpi', 'xxxhdpi'):
+              directory = base / f'mipmap-{density}'
+              regular = directory / 'ic_launcher.png'
+              round_icon = directory / 'ic_launcher_round.png'
+              assert regular.is_file() and round_icon.is_file(), f'Missing branded icon at {density}'
+              with Image.open(regular) as original, Image.open(round_icon) as rounded:
+                  assert original.size == rounded.size, f'Icon dimensions differ at {density}'
+                  assert ImageChops.difference(original.convert('RGBA'), rounded.convert('RGBA')).getbbox() is None, f'Round launcher does not match original at {density}'
+          print('Samsung round and regular launchers match at all five densities')
+          PY
       - name: Test authenticated AI proxy
         run: node --test backend/test/worker.test.mjs
       - name: Clean generated Flutter build outputs before dependency resolution

@@ -200,6 +200,30 @@ jobs:
           assert minimum <= 33, f'APK requires Android API {minimum}, higher than Galaxy S23 launch Android 13 (API 33)'
           print(f'APK signed and minSdk={minimum}; supports Galaxy S23 from Android 13 (API 33)')
           PY
+      - name: Reject sensitive Android permissions in distributable APK
+        run: |
+          set -euo pipefail
+          APK=build/app/outputs/flutter-apk/app-arm64-v8a-debug.apk
+          AAPT=$(find "$ANDROID_HOME/build-tools" -maxdepth 2 -type f -name aapt | sort -V | tail -1)
+          "$AAPT" dump permissions "$APK" > /tmp/apk-permissions.txt
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          permissions = Path('/tmp/apk-permissions.txt').read_text()
+          blocked = {
+              'android.permission.READ_SMS',
+              'android.permission.SEND_SMS',
+              'android.permission.RECEIVE_SMS',
+              'android.permission.READ_CALL_LOG',
+              'android.permission.WRITE_CALL_LOG',
+              'android.permission.READ_CONTACTS',
+              'android.permission.WRITE_CONTACTS',
+          }
+          found = set(re.findall(r"name='([^']+)'", permissions))
+          unexpected = sorted(found & blocked)
+          assert not unexpected, 'Sensitive Android permissions unexpectedly packaged: ' + ', '.join(unexpected)
+          print('APK privacy permission gate passed')
+          PY
       - name: Verify APKs and produce SHA-256 checksums
         run: |
           set -e

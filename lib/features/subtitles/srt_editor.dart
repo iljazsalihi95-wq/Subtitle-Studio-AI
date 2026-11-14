@@ -228,18 +228,26 @@ List<SubtitleCue> retimeSubtitlePassage(
     microseconds: newStart +
         ((t.inMicroseconds - oldStart) * newSpan ~/ oldSpan),
   );
-  return [
-    for (final cue in cues)
-      if (cue.start >= sourceStart && cue.end <= sourceEnd)
-        SubtitleCue(
-          start: map(cue.start),
-          end: map(cue.end),
-          original: cue.original,
-          translation: cue.translation,
-        )
-      else if (cue.end <= sourceStart || cue.start >= sourceEnd)
-        cue
-      else
-        throw const FormatException('Subtitle crosses sync passage boundary'),
-  ];
+  final result = <SubtitleCue>[];
+  for (final cue in cues) {
+    if (cue.start.isNegative || cue.end <= cue.start) {
+      throw const FormatException('Invalid subtitle interval');
+    }
+    if (cue.start >= sourceStart && cue.end <= sourceEnd) {
+      final start = map(cue.start);
+      final end = map(cue.end);
+      // Very short cues can collapse when a long passage is compressed.
+      // Reject them instead of exporting zero-duration SRT/WebVTT cues.
+      if (end <= start) {
+        throw const FormatException('Retiming would collapse a subtitle');
+      }
+      result.add(SubtitleCue(start: start, end: end,
+          original: cue.original, translation: cue.translation));
+    } else if (cue.end <= sourceStart || cue.start >= sourceEnd) {
+      result.add(cue);
+    } else {
+      throw const FormatException('Subtitle crosses sync passage boundary');
+    }
+  }
+  return result;
 }

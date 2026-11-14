@@ -202,3 +202,44 @@ SubtitleCue? cueAtPosition(List<SubtitleCue> cues, Duration position) {
   }
   return null;
 }
+
+/// Retimes a selected passage to match two verified audio sync points.
+///
+/// Every cue inside [sourceStart, sourceEnd] is mapped proportionally into
+/// [targetStart, targetEnd]. This corrects gradual subtitle drift while
+/// preserving the original words and translations. Cues crossing the source
+/// boundary are rejected rather than silently truncated.
+List<SubtitleCue> retimeSubtitlePassage(
+  List<SubtitleCue> cues, {
+  required Duration sourceStart,
+  required Duration sourceEnd,
+  required Duration targetStart,
+  required Duration targetEnd,
+}) {
+  if (sourceStart.isNegative || targetStart.isNegative ||
+      sourceEnd <= sourceStart || targetEnd <= targetStart) {
+    throw const FormatException('Invalid subtitle sync points');
+  }
+  final oldStart = sourceStart.inMicroseconds;
+  final oldSpan = (sourceEnd - sourceStart).inMicroseconds;
+  final newStart = targetStart.inMicroseconds;
+  final newSpan = (targetEnd - targetStart).inMicroseconds;
+  Duration map(Duration t) => Duration(
+    microseconds: newStart +
+        ((t.inMicroseconds - oldStart) * newSpan ~/ oldSpan),
+  );
+  return [
+    for (final cue in cues)
+      if (cue.start >= sourceStart && cue.end <= sourceEnd)
+        SubtitleCue(
+          start: map(cue.start),
+          end: map(cue.end),
+          original: cue.original,
+          translation: cue.translation,
+        )
+      else if (cue.end <= sourceStart || cue.start >= sourceEnd)
+        cue
+      else
+        throw const FormatException('Subtitle crosses sync passage boundary'),
+  ];
+}

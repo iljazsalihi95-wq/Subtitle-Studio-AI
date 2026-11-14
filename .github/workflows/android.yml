@@ -106,6 +106,25 @@ jobs:
         run: |
           python3 -m pip install --user Pillow
           python3 scripts/generate_launcher_icons.py
+      - name: Install branded round launcher for Samsung One UI
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          import shutil
+          manifest = Path('android/app/src/main/AndroidManifest.xml')
+          xml = manifest.read_text()
+          for density in ('mdpi', 'hdpi', 'xhdpi', 'xxhdpi', 'xxxhdpi'):
+              directory = Path('android/app/src/main/res') / f'mipmap-{density}'
+              source = directory / 'ic_launcher.png'
+              assert source.is_file(), f'Missing branded launcher: {source}'
+              shutil.copyfile(source, directory / 'ic_launcher_round.png')
+          xml = re.sub(r'\sandroid:roundIcon="[^"]*"', '', xml, count=1)
+          xml = xml.replace('<application', '<application android:roundIcon="@mipmap/ic_launcher_round"', 1)
+          assert xml.count('android:roundIcon="@mipmap/ic_launcher_round"') == 1
+          manifest.write_text(xml)
+          print('Samsung round launcher uses original branded artwork in all five densities')
+          PY
       - name: Prevent default Flutter adaptive icon overriding branded icon
         run: |
           # Flutter's generated adaptive launcher can take precedence on Android 8+.

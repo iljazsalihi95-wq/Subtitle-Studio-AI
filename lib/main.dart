@@ -505,8 +505,13 @@ class _SubtitlePreviewPageState extends State<SubtitlePreviewPage> {
   Future<void> _pickVideo() async {
     if (transcriptionBusy) return;
     final files = await FilePicker.pickFiles(type: FileType.video);
-    if (!mounted || files.isEmpty || files.single.path == null) return;
-    await _loadVideo(files.single.path!);
+    if (!mounted || files.isEmpty) return;
+    final path = files.single.path;
+    if (path == null || !await File(path).exists()) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Videoja nuk është e qasshme. Ruaje në telefon dhe provo përsëri.')));
+      return;
+    }
+    await _loadVideo(path);
   }
   Future<void> _loadVideo(String path) async {
     setState(() => videoLoading = true);

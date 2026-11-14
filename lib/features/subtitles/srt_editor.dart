@@ -108,7 +108,10 @@ Duration _parseTimestamp(String value) {
 /// Reads local SRT or WebVTT cues without changing their timing.
 List<SubtitleCue> parseSubtitles(String source) {
   final normalized = source.replaceAll('\r\n', '\n').replaceAll('\r', '\n').replaceFirst('\uFEFF', '');
-  final isVtt = normalized.startsWith('WEBVTT');
+  // Match the WebVTT signature as a complete header, not a cue that happens
+  // to begin with WEBVTT (for example WEBVTTIntro).
+  final firstLine = normalized.split('\n').first.trimRight();
+  final isVtt = firstLine == 'WEBVTT' || firstLine.startsWith('WEBVTT ') || firstLine.startsWith('WEBVTT\t');
   // Remove only the WEBVTT signature line. Searching for the first blank
   // line can discard the first cue when a file omits the header separator.
   final firstLineEnd = normalized.indexOf('\n');

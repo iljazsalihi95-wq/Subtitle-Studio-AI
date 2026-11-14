@@ -609,6 +609,65 @@ class _SubtitlePreviewPageState extends State<SubtitlePreviewPage> {
     try { setState(() => timedCues = shiftSubtitleTiming(timedCues, Duration(milliseconds: value))); }
     on FormatException { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Koha nuk mund të jetë negative.'))); }
   }
+  Future<void> _retimePassageDialog() async {
+    if (transcriptionBusy || aiBusy || timedCues.isEmpty) return;
+    final fields = List.generate(4, (_) => TextEditingController());
+    try {
+      await showDialog<void>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('Sinkronizo segmentin me audion'),
+          content: SingleChildScrollView(
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              const Text('Vendos dy pika nga titrat ekzistues dhe dy pikat përkatëse në audio. Kohët janë në milisekonda.'),
+              for (var i = 0; i < fields.length; i++)
+                Padding(
+                  padding: const EdgeInsets.only(top: 10),
+                  child: TextField(
+                    controller: fields[i],
+                    keyboardType: const TextInputType.numberWithOptions(),
+                    decoration: InputDecoration(labelText: const [
+                      'Fillimi aktual (ms)', 'Fundi aktual (ms)',
+                      'Fillimi në audio (ms)', 'Fundi në audio (ms)',
+                    ][i]),
+                  ),
+                ),
+            ]),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Anulo')),
+            FilledButton(onPressed: () {
+              final values = fields.map((c) => int.tryParse(c.text.trim())).toList();
+              if (values.any((v) => v == null)) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Shkruaj katër kohë të vlefshme në ms.')));
+                return;
+              }
+              try {
+                final updated = retimeSubtitlePassage(
+                  editedCues,
+                  sourceStart: Duration(milliseconds: values[0]!),
+                  sourceEnd: Duration(milliseconds: values[1]!),
+                  targetStart: Duration(milliseconds: values[2]!),
+                  targetEnd: Duration(milliseconds: values[3]!),
+                );
+                setState(() => timedCues = updated);
+                _scheduleRecovery();
+                Navigator.pop(dialogContext);
+              } on FormatException {
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                  content: Text('Pikat janë të pavlefshme ose një titër kalon kufirin e segmentit.')));
+              }
+            }, child: const Text('Sinkronizo')),
+          ],
+        ),
+      );
+    } finally {
+      for (final controller in fields) {
+        controller.dispose();
+      }
+    }
+  }
   @override void initState() { super.initState(); if (widget.videoPath != null) { WidgetsBinding.instance.addPostFrameCallback((_) { if (mounted) _loadVideo(widget.videoPath!); }); } projectVideoPath = widget.videoPath; timedCues = List.of(widget.cues); translations = timedCues.map((cue) => TextEditingController(text: cue.translation)).toList(); for (final controller in translations) { controller.addListener(_onTranslationChanged); } }
   void _onTranslationChanged() { if (mounted) { setState(() {}); _scheduleRecovery(); } }
   @override void dispose() { if (recoveryTimer?.isActive ?? false) { recoveryTimer?.cancel(); _recoverableSave(); } for (final controller in translations) { controller.dispose(); } offsetMs.dispose(); cueSearch.dispose(); videoController?.dispose(); super.dispose(); }
@@ -738,7 +797,7 @@ class _SubtitlePreviewPageState extends State<SubtitlePreviewPage> {
           if (aiBusy) TextButton.icon(onPressed: () => setState(() => cancelTranslation = true), icon: const Icon(Icons.stop), label: const Text('Ndalo')),
           if (aiBusy || translatedCount > 0) Text('$translatedCount titra të përkthyer'),
         ]),
-        _TimelineBanner(report: report, cueCount: timedCues.length), Row(children: [Expanded(child: TextField(controller: offsetMs, keyboardType: const TextInputType.numberWithOptions(signed: true), decoration: const InputDecoration(labelText: 'Zhvendos kohën (ms)', hintText: '1500 ose -500', border: OutlineInputBorder()))), const SizedBox(width: 8), FilledButton(onPressed: _shift, child: const Text('Zbato'))]), const SizedBox(height: 14), TextField(controller: cueSearch, onChanged: (value) => setState(() => searchQuery = value.trim().toLowerCase()), decoration: const InputDecoration(prefixIcon: Icon(Icons.search), labelText: 'Kërko në titra', border: OutlineInputBorder())), SwitchListTile(title: const Text('Shfaq vetëm problemet e timeline-it'), value: onlyProblems, onChanged: (value) => setState(() => onlyProblems = value)), Row(children: [Expanded(child: Text('${visible.length} nga ${timedCues.length} titra', style: const TextStyle(color: Color(0xFF9EABBC)))), FilledButton.icon(onPressed: _addCue, icon: const Icon(Icons.add), label: const Text('Shto titër'))]), const SizedBox(height: 16)]); }
+        _TimelineBanner(report: report, cueCount: timedCues.length), Row(children: [Expanded(child: TextField(controller: offsetMs, keyboardType: const TextInputType.numberWithOptions(signed: true), decoration: const InputDecoration(labelText: 'Zhvendos kohën (ms)', hintText: '1500 ose -500', border: OutlineInputBorder()))), const SizedBox(width: 8), FilledButton(onPressed: _shift, child: const Text('Zbato'))]), const SizedBox(height: 8), Align(alignment: Alignment.centerLeft, child: OutlinedButton.icon(onPressed: transcriptionBusy || aiBusy ? null : _retimePassageDialog, icon: const Icon(Icons.sync), label: const Text('Sinkronizo segmentin me dy pika audio'))), const SizedBox(height: 14), TextField(controller: cueSearch, onChanged: (value) => setState(() => searchQuery = value.trim().toLowerCase()), decoration: const InputDecoration(prefixIcon: Icon(Icons.search), labelText: 'Kërko në titra', border: OutlineInputBorder())), SwitchListTile(title: const Text('Shfaq vetëm problemet e timeline-it'), value: onlyProblems, onChanged: (value) => setState(() => onlyProblems = value)), Row(children: [Expanded(child: Text('${visible.length} nga ${timedCues.length} titra', style: const TextStyle(color: Color(0xFF9EABBC)))), FilledButton.icon(onPressed: _addCue, icon: const Icon(Icons.add), label: const Text('Shto titër'))]), const SizedBox(height: 16)]); }
       final cueIndex = visible[index - 1]; final cue = timedCues[cueIndex];
       String stamp(Duration value) => value.toString().split('.').first;
       final overlap = report.overlapIndexes.contains(cueIndex); final empty = report.emptyIndexes.contains(cueIndex);

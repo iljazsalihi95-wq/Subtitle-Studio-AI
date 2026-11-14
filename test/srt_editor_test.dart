@@ -111,4 +111,14 @@ void main() {
     expect(cueAtPosition(cues, const Duration(seconds: -1)), isNull);
   });
 
+  test('SRT and WebVTT exports refuse invalid subtitle intervals', () {
+    const reversed = [SubtitleCue(start: Duration(seconds: 4), end: Duration(seconds: 2), original: 'Bad')];
+    const negative = [SubtitleCue(start: Duration(seconds: -1), end: Duration(seconds: 1), original: 'Bad')];
+    expect(() => exportSrt(reversed), throwsFormatException);
+    expect(() => exportVtt(reversed), throwsFormatException);
+    expect(() => exportSrt(negative), throwsFormatException);
+    expect(() => exportVtt(negative), throwsFormatException);
+  });
+
+
 }

@@ -13,6 +13,11 @@ void main() {
     expect(cues.single.original, 'Hello\nworld');
     expect(cues.single.end.inMilliseconds, 3500);
   });
+  test('Cue text starting WEBVTT is not mistaken for a file signature', () {
+    final cues = parseSubtitles('1\n00:00:01,000 --> 00:00:02,000\nWEBVTTIntro');
+    expect(cues, hasLength(1));
+    expect(cues.single.original, 'WEBVTTIntro');
+  });
   test('WebVTT import accepts dot timestamps', () {
     final cues = parseSubtitles('WEBVTT\n\n00:00:02.000 --> 00:00:04.200\nWelcome');
     expect(cues.single.start.inSeconds, 2);

@@ -46,4 +46,10 @@ for density, px in (("mdpi",48),("hdpi",72),("xhdpi",96),("xxhdpi",144),("xxxhdp
     icon = im.resize((px,px), Image.Resampling.LANCZOS)
     assert icon.size == (px, px)
     icon.save(out)
+    # Verify the actual PNG written to disk, not only the in-memory image.
+    with Image.open(out) as saved:
+        saved.load()
+        assert saved.format == "PNG", f"Invalid launcher format: {out}"
+        assert saved.size == (px, px), f"Incorrect launcher dimensions: {out}"
+        assert len(saved.getcolors(maxcolors=px * px) or []) > 8, f"Launcher appears blank or unbranded: {out}"
 print("Generated original premium Subtitle Studio AI launcher icons")

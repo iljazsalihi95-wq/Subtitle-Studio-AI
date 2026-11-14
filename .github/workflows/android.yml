@@ -292,6 +292,12 @@ jobs:
           unzip -Z1 "$OUT/app-arm64-v8a-debug.apk" > /tmp/s23-apk-entries.txt
           grep -Fxq 'lib/arm64-v8a/libflutter.so' /tmp/s23-apk-entries.txt
           grep -Fxq 'classes.dex' /tmp/s23-apk-entries.txt
+          # Debug Flutter apps must bundle their Dart entrypoint and ARM64 engine.
+          grep -Fxq 'assets/flutter_assets/kernel_blob.bin' /tmp/s23-apk-entries.txt
+          if grep -Eq '^lib/(x86|x86_64|armeabi-v7a)/' /tmp/s23-apk-entries.txt; then
+            echo 'Unexpected non-ARM64 native libraries in Samsung S23 APK' >&2
+            exit 1
+          fi
           cd "$OUT"
           sha256sum app-arm64-v8a-debug.apk > app-arm64-v8a-debug.apk.sha256
           sha256sum --check --strict app-arm64-v8a-debug.apk.sha256

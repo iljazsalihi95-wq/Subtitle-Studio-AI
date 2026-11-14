@@ -132,4 +132,13 @@ void main() {
     expect(report.overlapIndexes, isEmpty);
   });
 
+  test('Split refuses invalid and negative cue intervals', () {
+    const negative = SubtitleCue(start: Duration(seconds: -1), end: Duration(seconds: 2), original: 'Bad');
+    const reversed = SubtitleCue(start: Duration(seconds: 3), end: Duration(seconds: 1), original: 'Bad');
+    expect(() => splitCue(negative, Duration.zero), throwsFormatException);
+    expect(() => splitCue(reversed, const Duration(seconds: 2)), throwsFormatException);
+    const valid = SubtitleCue(start: Duration(seconds: 1), end: Duration(seconds: 3), original: 'Good');
+    expect(splitCue(valid, const Duration(seconds: 2)), hasLength(2));
+  });
+
 }

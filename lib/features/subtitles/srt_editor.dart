@@ -184,6 +184,10 @@ List<SubtitleCue> splitCue(SubtitleCue cue, Duration position) {
   return [SubtitleCue(start: cue.start, end: position, original: cue.original, translation: cue.translation), SubtitleCue(start: position, end: cue.end, original: cue.original, translation: cue.translation)];
 }
 SubtitleCue mergeCues(SubtitleCue first, SubtitleCue second) {
+  if (first.start.isNegative || second.start.isNegative ||
+      first.end <= first.start || second.end <= second.start) {
+    throw const FormatException('Cannot merge subtitles with invalid timing');
+  }
   String combine(String a, String b) => [a, b].where((s) => s.trim().isNotEmpty).join('\n');
   return SubtitleCue(start: first.start < second.start ? first.start : second.start, end: first.end > second.end ? first.end : second.end, original: combine(first.original, second.original), translation: combine(first.translation.isEmpty ? first.original : first.translation, second.translation.isEmpty ? second.original : second.translation));
 }

@@ -104,7 +104,7 @@ class _HomePageState extends State<HomePage> {
       final files = await FilePicker.pickFiles(type: FileType.video);
       if (!mounted || files.isEmpty) return;
       final file = files.single;
-      if (file.path == null || !await File(file.path!).exists()) {
+      if (file.path == null || !await File(file.path!).exists() || await File(file.path!).length() == 0) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Nuk mund të hapet videoja e zgjedhur.')));
         return;
       }

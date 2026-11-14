@@ -95,4 +95,15 @@ void main() {
     expect(report.emptyIndexes, isEmpty);
   });
 
+  test('Playback lookup honors cue boundaries and gaps', () {
+    const cues = [
+      SubtitleCue(start: Duration(seconds: 1), end: Duration(seconds: 2), original: 'A'),
+      SubtitleCue(start: Duration(seconds: 3), end: Duration(seconds: 4), original: 'B'),
+    ];
+    expect(cueAtPosition(cues, const Duration(seconds: 1))?.original, 'A');
+    expect(cueAtPosition(cues, const Duration(seconds: 2)), isNull);
+    expect(cueAtPosition(cues, const Duration(milliseconds: 3500))?.original, 'B');
+    expect(cueAtPosition(cues, const Duration(seconds: -1)), isNull);
+  });
+
 }

@@ -141,4 +141,14 @@ void main() {
     expect(splitCue(valid, const Duration(seconds: 2)), hasLength(2));
   });
 
+  test('Merging subtitles rejects invalid timing', () {
+    const valid = SubtitleCue(start: Duration(seconds: 1), end: Duration(seconds: 2), original: 'Good');
+    const negative = SubtitleCue(start: Duration(seconds: -1), end: Duration(seconds: 1), original: 'Bad');
+    const reversed = SubtitleCue(start: Duration(seconds: 4), end: Duration(seconds: 3), original: 'Bad');
+    expect(() => mergeCues(valid, negative), throwsFormatException);
+    expect(() => mergeCues(reversed, valid), throwsFormatException);
+    expect(mergeCues(valid, const SubtitleCue(start: Duration(seconds: 2), end: Duration(seconds: 3), original: 'Next')).end,
+        const Duration(seconds: 3));
+  });
+
 }

@@ -121,4 +121,15 @@ void main() {
   });
 
 
+  test('Invalid intervals do not create false overlap warnings', () {
+    const cues = [
+      SubtitleCue(start: Duration(seconds: 1), end: Duration(seconds: 4), original: 'Valid'),
+      SubtitleCue(start: Duration(seconds: 2), end: Duration(seconds: 1), original: 'Invalid'),
+      SubtitleCue(start: Duration(seconds: 5), end: Duration(seconds: 6), original: 'Later'),
+    ];
+    final report = validateTimeline(cues);
+    expect(report.emptyIndexes, [1]);
+    expect(report.overlapIndexes, isEmpty);
+  });
+
 }

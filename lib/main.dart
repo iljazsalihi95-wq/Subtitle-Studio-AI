@@ -655,6 +655,23 @@ class _SubtitlePreviewPageState extends State<SubtitlePreviewPage> {
       translation: translations[index].text,
     ));
   }
+  void _nudgeTiming(int milliseconds) {
+    if (transcriptionBusy || aiBusy || timedCues.isEmpty) return;
+    try {
+      final updated = shiftSubtitleTiming(timedCues, Duration(milliseconds: milliseconds));
+      final duration = videoController?.value.duration;
+      if (duration != null && duration > Duration.zero &&
+          updated.any((cue) => cue.end > duration)) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Titrat do të dilnin jashtë videos.')));
+        return;
+      }
+      setState(() => timedCues = updated);
+      _scheduleRecovery();
+    } on FormatException {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Titrat nuk mund të fillojnë para zeros.')));
+    }
+  }
+
   void _shift() {
     if (transcriptionBusy) return;
     _scheduleRecovery();
@@ -851,7 +868,10 @@ class _SubtitlePreviewPageState extends State<SubtitlePreviewPage> {
           if (aiBusy) TextButton.icon(onPressed: () => setState(() => cancelTranslation = true), icon: const Icon(Icons.stop), label: const Text('Ndalo')),
           if (aiBusy || translatedCount > 0) Text('$translatedCount titra të përkthyer'),
         ]),
-        _TimelineBanner(report: report, cueCount: timedCues.length), Row(children: [Expanded(child: TextField(controller: offsetMs, keyboardType: const TextInputType.numberWithOptions(signed: true), decoration: const InputDecoration(labelText: 'Zhvendos kohën (ms)', hintText: '1500 ose -500', border: OutlineInputBorder()))), const SizedBox(width: 8), FilledButton(onPressed: _shift, child: const Text('Zbato'))]), const SizedBox(height: 8), Align(alignment: Alignment.centerLeft, child: OutlinedButton.icon(onPressed: transcriptionBusy || aiBusy ? null : _retimePassageDialog, icon: const Icon(Icons.sync), label: const Text('Sinkronizo segmentin me dy pika audio'))), const SizedBox(height: 14), TextField(controller: cueSearch, onChanged: (value) => setState(() => searchQuery = value.trim().toLowerCase()), decoration: const InputDecoration(prefixIcon: Icon(Icons.search), labelText: 'Kërko në titra', border: OutlineInputBorder())), SwitchListTile(title: const Text('Shfaq vetëm problemet e timeline-it'), value: onlyProblems, onChanged: (value) => setState(() => onlyProblems = value)), Row(children: [Expanded(child: Text('${visible.length} nga ${timedCues.length} titra', style: const TextStyle(color: Color(0xFF9EABBC)))), FilledButton.icon(onPressed: _addCue, icon: const Icon(Icons.add), label: const Text('Shto titër'))]), const SizedBox(height: 16)]); }
+        _TimelineBanner(report: report, cueCount: timedCues.length), Row(children: [Expanded(child: TextField(controller: offsetMs, keyboardType: const TextInputType.numberWithOptions(signed: true), decoration: const InputDecoration(labelText: 'Zhvendos kohën (ms)', hintText: '1500 ose -500', border: OutlineInputBorder()))), const SizedBox(width: 8), FilledButton(onPressed: _shift, child: const Text('Zbato'))]), const SizedBox(height: 8), Align(alignment: Alignment.centerLeft, child: OutlinedButton.icon(onPressed: transcriptionBusy || aiBusy ? null : _retimePassageDialog, icon: const Icon(Icons.sync), label: const Text('Sinkronizo segmentin me dy pika audio')), const SizedBox(height: 8), Wrap(spacing: 8, children: [
+          OutlinedButton(onPressed: transcriptionBusy || aiBusy ? null : () => _nudgeTiming(-250), child: const Text('−0.25 s')),
+          OutlinedButton(onPressed: transcriptionBusy || aiBusy ? null : () => _nudgeTiming(250), child: const Text('+0.25 s')),
+        ])), const SizedBox(height: 14), TextField(controller: cueSearch, onChanged: (value) => setState(() => searchQuery = value.trim().toLowerCase()), decoration: const InputDecoration(prefixIcon: Icon(Icons.search), labelText: 'Kërko në titra', border: OutlineInputBorder())), SwitchListTile(title: const Text('Shfaq vetëm problemet e timeline-it'), value: onlyProblems, onChanged: (value) => setState(() => onlyProblems = value)), Row(children: [Expanded(child: Text('${visible.length} nga ${timedCues.length} titra', style: const TextStyle(color: Color(0xFF9EABBC)))), FilledButton.icon(onPressed: _addCue, icon: const Icon(Icons.add), label: const Text('Shto titër'))]), const SizedBox(height: 16)]); }
       final cueIndex = visible[index - 1]; final cue = timedCues[cueIndex];
       String stamp(Duration value) => value.toString().split('.').first;
       final overlap = report.overlapIndexes.contains(cueIndex); final empty = report.emptyIndexes.contains(cueIndex);

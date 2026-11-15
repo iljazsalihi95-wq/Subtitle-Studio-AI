@@ -544,6 +544,13 @@ class _SubtitlePreviewPageState extends State<SubtitlePreviewPage> {
       final old = videoController;
       setState(() { videoController = next; projectVideoPath = path; videoLoading = false; });
       await old?.dispose();
+      if (mounted && timedCues.any((cue) => cue.end > next.value.duration)) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          duration: Duration(seconds: 7),
+          content: Text('Videoja është më e shkurtër se disa titra. Korrigjo minutazhin para eksportimit.'),
+        ));
+      }
+      _scheduleRecovery();
     } catch (_) {
       await next.dispose();
       if (!mounted) return;

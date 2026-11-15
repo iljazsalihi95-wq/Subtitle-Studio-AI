@@ -135,13 +135,21 @@ jobs:
         run: |
           python3 - <<'PY'
           from pathlib import Path
-          from PIL import Image
+          from PIL import Image, ImageChops
           for density, size in [('mdpi',48),('hdpi',72),('xhdpi',96),('xxhdpi',144),('xxxhdpi',192)]:
-              path = Path(f'android/app/src/main/res/mipmap-{density}/ic_launcher.png')
-              assert path.is_file(), f'Missing {path}'
-              with Image.open(path) as icon:
+              directory = Path(f'android/app/src/main/res/mipmap-{density}')
+              path = directory / 'ic_launcher.png'
+              round_path = directory / 'ic_launcher_round.png'
+              assert path.is_file() and round_path.is_file(), f'Missing branded icons in {directory}'
+              with Image.open(path) as icon, Image.open(round_path) as round_icon:
                   assert icon.size == (size, size), f'Invalid icon size: {path}'
-          print('All five branded Android launcher icons verified')
+                  assert round_icon.size == icon.size, f'Invalid round icon size: {round_path}'
+                  rgb = icon.convert('RGB')
+                  colors = rgb.getcolors(maxcolors=size * size)
+                  assert colors is not None and len(colors) >= 3, f'Blank or placeholder icon: {path}'
+                  assert any(r > 130 and g > 90 and b < 180 for _, (r, g, b) in colors), f'Branded gold accent missing: {path}'
+                  assert ImageChops.difference(icon.convert('RGBA'), round_icon.convert('RGBA')).getbbox() is None, f'Round icon differs from branded icon: {density}'
+          print('Five original gold-accented launcher and Samsung round icons verified')
           PY
       - name: Reject generic Android launcher and verify branded artwork
         run: |

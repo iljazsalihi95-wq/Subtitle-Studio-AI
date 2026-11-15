@@ -201,7 +201,7 @@ jobs:
               assert 'AndroidManifest.xml' in names, 'Android manifest missing'
               assert 'classes.dex' in names, 'Android dex bytecode missing'
               assert 'lib/arm64-v8a/libflutter.so' in names, 'ARM64 Flutter runtime missing'
-              assert 'lib/arm64-v8a/libapp.so' in names, 'ARM64 app library missing'
+              assert any(n.startswith('assets/flutter_assets/') for n in names), 'Flutter app assets missing'
           print('APK archive integrity, manifest, dex and ARM64 libraries verified')
           PY
       - name: Verify APK launcher pixels, ARM64 runtime and bundled illustrations

@@ -69,12 +69,6 @@ class StudioApp extends StatelessWidget {
               borderSide: const BorderSide(color: Color(0xFFE8C170), width: 1.5),
             ),
           ),
-          snackBarTheme: SnackBarThemeData(
-            backgroundColor: const Color(0xFF0D2034),
-            contentTextStyle: const TextStyle(color: Colors.white),
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          ),
           elevatedButtonTheme: ElevatedButtonThemeData(
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFFE8C170),

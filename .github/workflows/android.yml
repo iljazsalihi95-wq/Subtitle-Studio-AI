@@ -216,6 +216,33 @@ jobs:
           # Verify the user-visible app name inside the built APK, not only the source manifest.
           grep -Fq "application-label:'Subtitle Studio AI'" /tmp/compiled-apk-badging.txt
           echo "Compiled APK launcher resource, app label and package metadata verified"
+      - name: Compare packaged Samsung launcher pixels with original artwork
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          from zipfile import ZipFile
+          from io import BytesIO
+          from PIL import Image, ImageChops
+          apk = Path('build/app/outputs/flutter-apk/app-arm64-v8a-debug.apk')
+          assert apk.is_file(), 'ARM64 APK missing'
+          with ZipFile(apk) as package:
+              entries = set(package.namelist())
+              for density in ('mdpi', 'hdpi', 'xhdpi', 'xxhdpi', 'xxxhdpi'):
+                  base = f'res/mipmap-{density}'
+                  source = Path('android/app/src/main') / base / 'ic_launcher.png'
+                  assert source.is_file(), f'Missing original launcher: {source}'
+                  packaged = [p for p in entries if p.startswith(base + '/') and p.endswith('/ic_launcher.png')]
+                  if not packaged:
+                      packaged = [p for p in entries if p == base + '/ic_launcher.png']
+                  assert len(packaged) == 1, f'Expected one packaged launcher for {density}, found {packaged}'
+                  with Image.open(source) as original, Image.open(BytesIO(package.read(packaged[0]))) as built:
+                      original_rgba = original.convert('RGBA')
+                      built_rgba = built.convert('RGBA')
+                      assert original_rgba.size == built_rgba.size, f'{density} launcher size changed'
+                      assert ImageChops.difference(original_rgba, built_rgba).getbbox() is None, f'{density} launcher pixels changed in APK'
+          print('All five Samsung launcher densities match original branded artwork pixel-for-pixel')
+          PY
       - name: Verify Samsung S23 APK signing and Android compatibility
         run: |
           set -euo pipefail

@@ -426,7 +426,7 @@ class _SubtitlePreviewPageState extends State<SubtitlePreviewPage> {
       if (files.isEmpty) return;
       final bytes = await files.single.readAsBytes();
       if (bytes.length > 20 * 1024 * 1024) throw const FormatException('Skedari tejkalon 20 MiB.');
-      final imported = parseSubtitles(utf8.decode(bytes));
+      final imported = parseSubtitles(utf8.decode(bytes, allowMalformed: false).replaceFirst(RegExp(r'^\uFEFF'), ''));
       if (imported.isEmpty) throw const FormatException('Nuk ka titra të vlefshëm.');
       if (!mounted) return;
       if (editedCues.any((c) => c.original.trim().isNotEmpty || c.translation.trim().isNotEmpty)) {
@@ -438,7 +438,7 @@ class _SubtitlePreviewPageState extends State<SubtitlePreviewPage> {
       setState(() { timedCues = imported; translations.clear(); translations.addAll(imported.map((c) => TextEditingController(text: c.translation)..addListener(_onTranslationChanged))); });
       WidgetsBinding.instance.addPostFrameCallback((_) { for (final c in old) { c.dispose(); } });
       _scheduleRecovery();
-    } catch (error) { if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Importimi i titrave dështoi: $error'))); }
+    } on FormatException { if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Skedari SRT/VTT nuk është UTF-8 i vlefshëm ose nuk përmban titra të lexueshëm.'))); } catch (_) { if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Importimi dështoi. Kontrollo skedarin dhe provo përsëri.'))); }
   }
   Future<void> _editTiming(int index) async {
     if (transcriptionBusy) return;

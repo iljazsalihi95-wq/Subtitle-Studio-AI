@@ -607,6 +607,31 @@ class _SubtitlePreviewPageState extends State<SubtitlePreviewPage> {
     }
   }
 
+  Future<void> _editOriginalCue(int index) async {
+    if (transcriptionBusy) return;
+    final editor = TextEditingController(text: timedCues[index].original);
+    final updated = await showDialog<String>(
+      context: context,
+      builder: (dialog) => AlertDialog(
+        title: Text('Redakto titrin origjinal ${index + 1}'),
+        content: TextField(controller: editor, autofocus: true, maxLines: 6,
+          decoration: const InputDecoration(labelText: 'Teksti origjinal')),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialog), child: const Text('Anulo')),
+          FilledButton(onPressed: () => Navigator.pop(dialog, editor.text), child: const Text('Ruaj')),
+        ],
+      ),
+    );
+    editor.dispose();
+    if (!mounted || updated == null || index >= timedCues.length) return;
+    final cue = timedCues[index];
+    setState(() => timedCues[index] = SubtitleCue(
+      start: cue.start, end: cue.end, original: updated,
+      translation: translations[index].text,
+    ));
+    _scheduleRecovery();
+  }
+
   void _markCueBoundary(int index, {required bool start}) {
     if (transcriptionBusy) return;
     _scheduleRecovery();
@@ -843,7 +868,7 @@ class _SubtitlePreviewPageState extends State<SubtitlePreviewPage> {
              OutlinedButton.icon(onPressed: () => _alignAllToCue(cueIndex), icon: const Icon(Icons.sync), label: const Text('Sinkronizo të gjithë këtu')),
           ]),
         ),
-        const SizedBox(height: 8), SelectableText(cue.original, style: const TextStyle(fontSize: 17)), const SizedBox(height: 8),
+        const SizedBox(height: 8), Align(alignment: Alignment.centerLeft, child: TextButton.icon(onPressed: transcriptionBusy ? null : () => _editOriginalCue(cueIndex), icon: const Icon(Icons.edit_outlined), label: const Text('Redakto tekstin origjinal'))), SelectableText(cue.original, style: const TextStyle(fontSize: 17)), const SizedBox(height: 8),
         Align(alignment: Alignment.centerRight, child: TextButton.icon(
           onPressed: () { translations[cueIndex].text = cue.original; setState(() {}); },
           icon: const Icon(Icons.content_copy_outlined, size: 17),

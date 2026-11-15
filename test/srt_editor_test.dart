@@ -111,6 +111,15 @@ void main() {
     expect(cueAtPosition(cues, const Duration(seconds: -1)), isNull);
   });
 
+  test('Playback skips invalid cue intervals without hiding valid subtitles', () {
+    const cues = [
+      SubtitleCue(start: Duration(seconds: -1), end: Duration(seconds: 4), original: 'Negative'),
+      SubtitleCue(start: Duration(seconds: 3), end: Duration(seconds: 1), original: 'Reversed'),
+      SubtitleCue(start: Duration(seconds: 2), end: Duration(seconds: 5), original: 'Valid'),
+    ];
+    expect(cueAtPosition(cues, const Duration(seconds: 3))?.original, 'Valid');
+  });
+
   test('SRT and WebVTT exports refuse invalid subtitle intervals', () {
     const reversed = [SubtitleCue(start: Duration(seconds: 4), end: Duration(seconds: 2), original: 'Bad')];
     const negative = [SubtitleCue(start: Duration(seconds: -1), end: Duration(seconds: 1), original: 'Bad')];

@@ -22,6 +22,15 @@ class StudioApp extends StatelessWidget {
         theme: ThemeData(
           brightness: Brightness.dark,
           scaffoldBackgroundColor: const Color(0xFF07111F),
+
+          snackBarTheme: SnackBarThemeData(
+            backgroundColor: const Color(0xFF0D2034),
+            contentTextStyle: const TextStyle(color: Color(0xFFF4F0E7), fontWeight: FontWeight.w500),
+            actionTextColor: const Color(0xFFE8C170),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            elevation: 8,
+          ),
           colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFFE8C170), brightness: Brightness.dark),
           textSelectionTheme: TextSelectionThemeData(
             cursorColor: const Color(0xFFE8C170),

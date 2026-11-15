@@ -18,9 +18,7 @@ void main() {
     await tester.pumpWidget(const StudioApp());
     final bar = tester.widget<NavigationBar>(find.byType(NavigationBar));
     expect(bar.destinations.length, 4);
-    expect(find.byIcon(Icons.home_outlined), findsOneWidget);
-    expect(find.byIcon(Icons.subtitles_outlined), findsOneWidget);
-    expect(find.byIcon(Icons.auto_awesome_outlined), findsOneWidget);
-    expect(find.byIcon(Icons.folder_outlined), findsOneWidget);
+    expect(bar.destinations.map((item) => (item as NavigationDestination).label).toList(),
+        ['Ballina', 'Studio', 'AI', 'Projektet']);
   });
 }

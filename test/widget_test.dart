@@ -13,6 +13,18 @@ void main() {
     expect(find.text('Studio me video'), findsOneWidget);
   });
 
+
+  testWidgets('New project card opens the editable subtitle timeline', (tester) async {
+    await tester.pumpWidget(const StudioApp());
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Projekt i ri'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(SubtitlePreviewPage), findsOneWidget);
+    expect(find.text('projekt_i_ri.srt'), findsWidgets);
+  });
+
   testWidgets('Studio tab opens an editable project without selecting video', (tester) async {
     await tester.pumpWidget(const StudioApp());
     await tester.pump();

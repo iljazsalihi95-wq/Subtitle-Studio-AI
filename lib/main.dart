@@ -37,6 +37,12 @@ class StudioApp extends StatelessWidget {
             selectionColor: const Color(0xFFE8C170).withValues(alpha: 0.28),
             selectionHandleColor: const Color(0xFFE8C170),
           ),
+          scrollbarTheme: ScrollbarThemeData(
+            thumbVisibility: const WidgetStatePropertyAll<bool>(true),
+            thumbColor: WidgetStatePropertyAll<Color>(const Color(0xFFE8C170)),
+            thickness: const WidgetStatePropertyAll<double>(4),
+            radius: const Radius.circular(8),
+          ),
           navigationBarTheme: NavigationBarThemeData(
             backgroundColor: const Color(0xFF0D2034),
             indicatorColor: const Color(0xFFE8C170).withValues(alpha: 0.20),

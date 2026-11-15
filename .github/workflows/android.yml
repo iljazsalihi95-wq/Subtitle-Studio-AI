@@ -336,6 +336,31 @@ jobs:
           echo "Verified SHA-256 checksum for commit $GITHUB_SHA"
           ls -lh app-arm64-v8a-debug.apk
           echo 'Samsung S23 arm64-v8a APK verified'
+      - name: Record APK build provenance for Samsung S23
+        run: |
+          python3 - <<'PY'
+          import hashlib, json, os
+          from pathlib import Path
+          apk = Path('build/app/outputs/flutter-apk/app-arm64-v8a-debug.apk')
+          assert apk.is_file() and apk.stat().st_size > 0, 'Missing ARM64 APK'
+          digest = hashlib.sha256(apk.read_bytes()).hexdigest()
+          report = {
+              'repository': os.environ['GITHUB_REPOSITORY'],
+              'commit': os.environ['GITHUB_SHA'],
+              'run_id': os.environ['GITHUB_RUN_ID'],
+              'run_attempt': os.environ['GITHUB_RUN_ATTEMPT'],
+              'apk': apk.name,
+              'architecture': 'arm64-v8a',
+              'build_type': 'debug',
+              'bytes': apk.stat().st_size,
+              'sha256': digest,
+              'device_target': 'Samsung Galaxy S23',
+              'physical_install_tested': False,
+          }
+          output = apk.with_suffix('.build-info.json')
+          output.write_text(json.dumps(report, indent=2) + '\n')
+          print(f'Build provenance recorded for commit {report["commit"][:12]}')
+          PY
       - uses: actions/upload-artifact@v4
         with:
           name: samsung-s23-arm64-debug-apk
@@ -345,3 +370,4 @@ jobs:
           path: |
             build/app/outputs/flutter-apk/app-arm64-v8a-debug.apk
             build/app/outputs/flutter-apk/app-arm64-v8a-debug.apk.sha256
+            build/app/outputs/flutter-apk/app-arm64-v8a-debug.build-info.json

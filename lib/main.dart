@@ -438,6 +438,18 @@ class _SubtitlePreviewPageState extends State<SubtitlePreviewPage> {
       setState(() { timedCues = imported; translations.clear(); translations.addAll(imported.map((c) => TextEditingController(text: c.translation)..addListener(_onTranslationChanged))); });
       WidgetsBinding.instance.addPostFrameCallback((_) { for (final c in old) { c.dispose(); } });
       _scheduleRecovery();
+      final videoLength = videoController?.value.duration;
+      if (videoLength != null && videoLength > Duration.zero &&
+          imported.any((cue) => cue.end > videoLength)) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          duration: Duration(seconds: 7),
+          content: Text('Disa titra janë jashtë minutazhit të videos. Përdor Sinkronizo të gjithë këtu ose korrigjo kohët.'),
+        ));
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('${imported.length} titra u ngarkuan. Kontrollo përputhjen me videon.'),
+        ));
+      }
     } on FormatException { if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Skedari SRT/VTT nuk është UTF-8 i vlefshëm ose nuk përmban titra të lexueshëm.'))); } catch (_) { if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Importimi dështoi. Kontrollo skedarin dhe provo përsëri.'))); }
   }
   Future<void> _editTiming(int index) async {

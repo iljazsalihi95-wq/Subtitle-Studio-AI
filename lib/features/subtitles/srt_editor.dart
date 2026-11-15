@@ -198,7 +198,9 @@ SubtitleCue mergeCues(SubtitleCue first, SubtitleCue second) {
 SubtitleCue? cueAtPosition(List<SubtitleCue> cues, Duration position) {
   if (position.isNegative) return null;
   for (final cue in cues) {
-    if (cue.start <= position && position < cue.end) return cue;
+    // Ignore malformed intervals rather than displaying broken cues during playback.
+    if (!cue.start.isNegative && cue.end > cue.start &&
+        cue.start <= position && position < cue.end) return cue;
   }
   return null;
 }

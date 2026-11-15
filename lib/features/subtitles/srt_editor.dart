@@ -106,7 +106,296 @@ String exportVtt(List<SubtitleCue> cues, {bool translated = true}) {
 Duration _parseTimestamp(String value) {
   final token = value.trim();
   // WebVTT allows MM:SS.mmm; SRT and WebVTT also allow HH:MM:SS.mmm.
-  final match = RegExp(r'^(?:(\d{2,}):)?(\d{2}):(\d{2})[,.](\d{1,3})
+  final match = RegExp(r'^(?:(\d{2,}):)?(\d{2}):(\d{2})[,.](\d{1,3})  if (match == null) throw FormatException('Invalid subtitle timestamp: $value');
+  final hours = int.tryParse(match.group(1) ?? '0')!;
+  final minutes = int.parse(match.group(2)!);
+  final seconds = int.parse(match.group(3)!);
+  final milliseconds = int.parse(match.group(4)!.padRight(3, '0'));
+  if ((match.group(1) != null && minutes >= 60) || seconds >= 60) {
+    throw FormatException('Invalid subtitle timestamp: $value');
+  }
+  return Duration(hours: hours, minutes: minutes, seconds: seconds, milliseconds: milliseconds);
+}
+
+/// Reads local SRT or WebVTT cues without changing their timing.
+List<SubtitleCue> parseSubtitles(String source) {
+  final normalized = source.replaceAll('\r\n', '\n').replaceAll('\r', '\n').replaceFirst('\uFEFF', '');
+  // Match the WebVTT signature as a complete header, not a cue that happens
+  // to begin with WEBVTT (for example WEBVTTIntro).
+  final firstLine = normalized.split('\n').first.trimRight();
+  final isVtt = firstLine == 'WEBVTT' || firstLine.startsWith('WEBVTT ') || firstLine.startsWith('WEBVTT\t');
+  // Remove only the WEBVTT signature line. Searching for the first blank
+  // line can discard the first cue when a file omits the header separator.
+  final firstLineEnd = normalized.indexOf('\n');
+  final body = isVtt
+      ? (firstLineEnd < 0 ? '' : normalized.substring(firstLineEnd + 1).trimLeft())
+      : normalized;
+  final blocks = body.split(RegExp(r'\n\s*\n'));
+  final cues = <SubtitleCue>[];
+  for (final block in blocks) {
+    final lines = block.trim().split('\n');
+    if (lines.isEmpty || lines.first.trim() == 'WEBVTT' || RegExp(r'^(NOTE|STYLE|REGION)(\s|$)').hasMatch(lines.first.trim())) continue;
+    final timeIndex = lines.indexWhere((line) => line.contains('-->'));
+    if (timeIndex < 0 || timeIndex >= lines.length - 1) continue;
+    // Ignore metadata and comments before the timing line, but retain multiline cue text.
+    final times = lines[timeIndex].split('-->');
+    if (times.length != 2) continue;
+    final endToken = times[1].trim().split(RegExp(r'\s+')).first;
+    final start = _parseTimestamp(times[0]);
+    final end = _parseTimestamp(endToken);
+    if (end <= start) throw const FormatException('Subtitle end must follow start');
+    cues.add(SubtitleCue(start: start, end: end, original: lines.skip(timeIndex + 1).join('\n')));
+  }
+  return cues;
+}
+
+
+class SubtitleProject {
+  const SubtitleProject({required this.title, required this.cues, this.videoPath});
+  final String title;
+  final String? videoPath;
+  final List<SubtitleCue> cues;
+}
+
+String encodeProject(SubtitleProject project) => jsonEncode({
+  'format': 'subtitle-studio-ai', 'version': 1, 'title': project.title,
+  'videoPath': project.videoPath,
+  'cues': [for (final c in project.cues) {'start': c.start.inMilliseconds, 'end': c.end.inMilliseconds, 'original': c.original, 'translation': c.translation}],
+});
+
+SubtitleProject decodeProject(String source) {
+  // Accept a real UTF-8 BOM in project files exported by desktop editors.
+  final normalized = source.startsWith('\uFEFF') ? source.substring(1) : source;
+  final data = jsonDecode(normalized);
+  if (data is! Map || data['format'] != 'subtitle-studio-ai' || data['version'] != 1 || data['title'] is! String || data['cues'] is! List || (data['videoPath'] != null && data['videoPath'] is! String)) throw const FormatException('Invalid project');
+  final cues = <SubtitleCue>[];
+  for (final c in data['cues']) {
+    if (c is! Map || c['start'] is! int || c['end'] is! int || c['start'] < 0 || c['end'] <= c['start'] || c['original'] is! String || c['translation'] is! String) throw const FormatException('Invalid cue');
+    cues.add(SubtitleCue(start: Duration(milliseconds: c['start']), end: Duration(milliseconds: c['end']), original: c['original'], translation: c['translation']));
+  }
+  return SubtitleProject(title: data['title'], videoPath: data['videoPath'], cues: cues);
+}
+
+List<SubtitleCue> splitCue(SubtitleCue cue, Duration position) {
+  if (cue.start.isNegative || cue.end <= cue.start || position <= cue.start || position >= cue.end) {
+    throw const FormatException('Split outside valid cue interval');
+  }
+  return [SubtitleCue(start: cue.start, end: position, original: cue.original, translation: cue.translation), SubtitleCue(start: position, end: cue.end, original: cue.original, translation: cue.translation)];
+}
+SubtitleCue mergeCues(SubtitleCue first, SubtitleCue second) {
+  if (first.start.isNegative || second.start.isNegative ||
+      first.end <= first.start || second.end <= second.start) {
+    throw const FormatException('Cannot merge subtitles with invalid timing');
+  }
+  String combine(String a, String b) => [a, b].where((s) => s.trim().isNotEmpty).join('\n');
+  return SubtitleCue(start: first.start < second.start ? first.start : second.start, end: first.end > second.end ? first.end : second.end, original: combine(first.original, second.original), translation: combine(first.translation.isEmpty ? first.original : first.translation, second.translation.isEmpty ? second.original : second.translation));
+}
+
+/// Returns the cue active at [position], or null in a subtitle gap.
+/// Start is inclusive and end exclusive, matching video playback timelines.
+/// Overlapping cues are resolved in editor order.
+SubtitleCue? cueAtPosition(List<SubtitleCue> cues, Duration position) {
+  if (position.isNegative) return null;
+  for (final cue in cues) {
+    if (cue.start <= position && position < cue.end) return cue;
+  }
+  return null;
+}
+
+/// Retimes a selected passage to match two verified audio sync points.
+///
+/// Every cue inside [sourceStart, sourceEnd] is mapped proportionally into
+/// [targetStart, targetEnd]. This corrects gradual subtitle drift while
+/// preserving the original words and translations. Cues crossing the source
+/// boundary are rejected rather than silently truncated.
+List<SubtitleCue> retimeSubtitlePassage(
+  List<SubtitleCue> cues, {
+  required Duration sourceStart,
+  required Duration sourceEnd,
+  required Duration targetStart,
+  required Duration targetEnd,
+}) {
+  if (sourceStart.isNegative || targetStart.isNegative ||
+      sourceEnd <= sourceStart || targetEnd <= targetStart) {
+    throw const FormatException('Invalid subtitle sync points');
+  }
+  final oldStart = sourceStart.inMicroseconds;
+  final oldSpan = (sourceEnd - sourceStart).inMicroseconds;
+  final newStart = targetStart.inMicroseconds;
+  final newSpan = (targetEnd - targetStart).inMicroseconds;
+  Duration map(Duration t) => Duration(
+    microseconds: newStart +
+        ((t.inMicroseconds - oldStart) * newSpan ~/ oldSpan),
+  );
+  final result = <SubtitleCue>[];
+  for (final cue in cues) {
+    if (cue.start.isNegative || cue.end <= cue.start) {
+      throw const FormatException('Invalid subtitle interval');
+    }
+    if (cue.start >= sourceStart && cue.end <= sourceEnd) {
+      final start = map(cue.start);
+      final end = map(cue.end);
+      // Very short cues can collapse when a long passage is compressed.
+      // Reject them instead of exporting zero-duration SRT/WebVTT cues.
+      if (end <= start) {
+        throw const FormatException('Retiming would collapse a subtitle');
+      }
+      result.add(SubtitleCue(start: start, end: end,
+          original: cue.original, translation: cue.translation));
+    } else if (cue.end <= sourceStart || cue.start >= sourceEnd) {
+      result.add(cue);
+    } else {
+      throw const FormatException('Subtitle crosses sync passage boundary');
+    }
+  }
+  return result;
+}
+).firstMatch(token);
+  if (match == null) throw FormatException('Invalid subtitle timestamp: $value');
+  final hours = int.tryParse(match.group(1) ?? '0')!;
+  final minutes = int.parse(match.group(2)!);
+  final seconds = int.parse(match.group(3)!);
+  final milliseconds = int.parse(match.group(4)!);
+  if ((match.group(1) != null && minutes >= 60) || seconds >= 60) {
+    throw FormatException('Invalid subtitle timestamp: $value');
+  }
+  return Duration(hours: hours, minutes: minutes, seconds: seconds, milliseconds: milliseconds);
+}
+
+/// Reads local SRT or WebVTT cues without changing their timing.
+List<SubtitleCue> parseSubtitles(String source) {
+  final normalized = source.replaceAll('\r\n', '\n').replaceAll('\r', '\n').replaceFirst('\uFEFF', '');
+  // Match the WebVTT signature as a complete header, not a cue that happens
+  // to begin with WEBVTT (for example WEBVTTIntro).
+  final firstLine = normalized.split('\n').first.trimRight();
+  final isVtt = firstLine == 'WEBVTT' || firstLine.startsWith('WEBVTT ') || firstLine.startsWith('WEBVTT\t');
+  // Remove only the WEBVTT signature line. Searching for the first blank
+  // line can discard the first cue when a file omits the header separator.
+  final firstLineEnd = normalized.indexOf('\n');
+  final body = isVtt
+      ? (firstLineEnd < 0 ? '' : normalized.substring(firstLineEnd + 1).trimLeft())
+      : normalized;
+  final blocks = body.split(RegExp(r'\n\s*\n'));
+  final cues = <SubtitleCue>[];
+  for (final block in blocks) {
+    final lines = block.trim().split('\n');
+    if (lines.isEmpty || lines.first.trim() == 'WEBVTT' || RegExp(r'^(NOTE|STYLE|REGION)(\s|$)').hasMatch(lines.first.trim())) continue;
+    final timeIndex = lines.indexWhere((line) => line.contains('-->'));
+    if (timeIndex < 0 || timeIndex >= lines.length - 1) continue;
+    // Ignore metadata and comments before the timing line, but retain multiline cue text.
+    final times = lines[timeIndex].split('-->');
+    if (times.length != 2) continue;
+    final endToken = times[1].trim().split(RegExp(r'\s+')).first;
+    final start = _parseTimestamp(times[0]);
+    final end = _parseTimestamp(endToken);
+    if (end <= start) throw const FormatException('Subtitle end must follow start');
+    cues.add(SubtitleCue(start: start, end: end, original: lines.skip(timeIndex + 1).join('\n')));
+  }
+  return cues;
+}
+
+
+class SubtitleProject {
+  const SubtitleProject({required this.title, required this.cues, this.videoPath});
+  final String title;
+  final String? videoPath;
+  final List<SubtitleCue> cues;
+}
+
+String encodeProject(SubtitleProject project) => jsonEncode({
+  'format': 'subtitle-studio-ai', 'version': 1, 'title': project.title,
+  'videoPath': project.videoPath,
+  'cues': [for (final c in project.cues) {'start': c.start.inMilliseconds, 'end': c.end.inMilliseconds, 'original': c.original, 'translation': c.translation}],
+});
+
+SubtitleProject decodeProject(String source) {
+  // Accept a real UTF-8 BOM in project files exported by desktop editors.
+  final normalized = source.startsWith('\uFEFF') ? source.substring(1) : source;
+  final data = jsonDecode(normalized);
+  if (data is! Map || data['format'] != 'subtitle-studio-ai' || data['version'] != 1 || data['title'] is! String || data['cues'] is! List || (data['videoPath'] != null && data['videoPath'] is! String)) throw const FormatException('Invalid project');
+  final cues = <SubtitleCue>[];
+  for (final c in data['cues']) {
+    if (c is! Map || c['start'] is! int || c['end'] is! int || c['start'] < 0 || c['end'] <= c['start'] || c['original'] is! String || c['translation'] is! String) throw const FormatException('Invalid cue');
+    cues.add(SubtitleCue(start: Duration(milliseconds: c['start']), end: Duration(milliseconds: c['end']), original: c['original'], translation: c['translation']));
+  }
+  return SubtitleProject(title: data['title'], videoPath: data['videoPath'], cues: cues);
+}
+
+List<SubtitleCue> splitCue(SubtitleCue cue, Duration position) {
+  if (cue.start.isNegative || cue.end <= cue.start || position <= cue.start || position >= cue.end) {
+    throw const FormatException('Split outside valid cue interval');
+  }
+  return [SubtitleCue(start: cue.start, end: position, original: cue.original, translation: cue.translation), SubtitleCue(start: position, end: cue.end, original: cue.original, translation: cue.translation)];
+}
+SubtitleCue mergeCues(SubtitleCue first, SubtitleCue second) {
+  if (first.start.isNegative || second.start.isNegative ||
+      first.end <= first.start || second.end <= second.start) {
+    throw const FormatException('Cannot merge subtitles with invalid timing');
+  }
+  String combine(String a, String b) => [a, b].where((s) => s.trim().isNotEmpty).join('\n');
+  return SubtitleCue(start: first.start < second.start ? first.start : second.start, end: first.end > second.end ? first.end : second.end, original: combine(first.original, second.original), translation: combine(first.translation.isEmpty ? first.original : first.translation, second.translation.isEmpty ? second.original : second.translation));
+}
+
+/// Returns the cue active at [position], or null in a subtitle gap.
+/// Start is inclusive and end exclusive, matching video playback timelines.
+/// Overlapping cues are resolved in editor order.
+SubtitleCue? cueAtPosition(List<SubtitleCue> cues, Duration position) {
+  if (position.isNegative) return null;
+  for (final cue in cues) {
+    if (cue.start <= position && position < cue.end) return cue;
+  }
+  return null;
+}
+
+/// Retimes a selected passage to match two verified audio sync points.
+///
+/// Every cue inside [sourceStart, sourceEnd] is mapped proportionally into
+/// [targetStart, targetEnd]. This corrects gradual subtitle drift while
+/// preserving the original words and translations. Cues crossing the source
+/// boundary are rejected rather than silently truncated.
+List<SubtitleCue> retimeSubtitlePassage(
+  List<SubtitleCue> cues, {
+  required Duration sourceStart,
+  required Duration sourceEnd,
+  required Duration targetStart,
+  required Duration targetEnd,
+}) {
+  if (sourceStart.isNegative || targetStart.isNegative ||
+      sourceEnd <= sourceStart || targetEnd <= targetStart) {
+    throw const FormatException('Invalid subtitle sync points');
+  }
+  final oldStart = sourceStart.inMicroseconds;
+  final oldSpan = (sourceEnd - sourceStart).inMicroseconds;
+  final newStart = targetStart.inMicroseconds;
+  final newSpan = (targetEnd - targetStart).inMicroseconds;
+  Duration map(Duration t) => Duration(
+    microseconds: newStart +
+        ((t.inMicroseconds - oldStart) * newSpan ~/ oldSpan),
+  );
+  final result = <SubtitleCue>[];
+  for (final cue in cues) {
+    if (cue.start.isNegative || cue.end <= cue.start) {
+      throw const FormatException('Invalid subtitle interval');
+    }
+    if (cue.start >= sourceStart && cue.end <= sourceEnd) {
+      final start = map(cue.start);
+      final end = map(cue.end);
+      // Very short cues can collapse when a long passage is compressed.
+      // Reject them instead of exporting zero-duration SRT/WebVTT cues.
+      if (end <= start) {
+        throw const FormatException('Retiming would collapse a subtitle');
+      }
+      result.add(SubtitleCue(start: start, end: end,
+          original: cue.original, translation: cue.translation));
+    } else if (cue.end <= sourceStart || cue.start >= sourceEnd) {
+      result.add(cue);
+    } else {
+      throw const FormatException('Subtitle crosses sync passage boundary');
+    }
+  }
+  return result;
+}
+).firstMatch(token);
   if (match == null) throw FormatException('Invalid subtitle timestamp: $value');
   final hours = int.tryParse(match.group(1) ?? '0')!;
   final minutes = int.parse(match.group(2)!);

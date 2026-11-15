@@ -232,9 +232,7 @@ jobs:
                   base = f'res/mipmap-{density}'
                   source = Path('android/app/src/main') / base / 'ic_launcher.png'
                   assert source.is_file(), f'Missing original launcher: {source}'
-                  packaged = [p for p in entries if p.startswith(base + '/') and p.endswith('/ic_launcher.png')]
-                  if not packaged:
-                      packaged = [p for p in entries if p == base + '/ic_launcher.png']
+                  packaged = [p for p in entries if p in (base + '/ic_launcher.png', base + '-v4/ic_launcher.png')]
                   assert len(packaged) == 1, f'Expected one packaged launcher for {density}, found {packaged}'
                   with Image.open(source) as original, Image.open(BytesIO(package.read(packaged[0]))) as built:
                       original_rgba = original.convert('RGBA')

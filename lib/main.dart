@@ -587,6 +587,26 @@ class _SubtitlePreviewPageState extends State<SubtitlePreviewPage> {
       cueSearch.clear();
     });
   }
+  void _alignAllToCue(int index) {
+    if (transcriptionBusy || aiBusy) return;
+    final player = videoController;
+    if (player == null || !player.value.isInitialized) return;
+    final delta = player.value.position - timedCues[index].start;
+    try {
+      final aligned = shiftSubtitleTiming(timedCues, delta);
+      if (player.value.duration > Duration.zero &&
+          aligned.any((cue) => cue.end > player.value.duration)) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Titrat dalin jashtë videos. Zgjidh një pikë tjetër.')));
+        return;
+      }
+      setState(() => timedCues = aligned);
+      _scheduleRecovery();
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Titrat u sinkronizuan sipas kësaj pike. Kontrollo dhe eksporto SRT/VTT.')));
+    } on FormatException {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Sinkronizimi do të krijonte kohë negative.')));
+    }
+  }
+
   void _markCueBoundary(int index, {required bool start}) {
     if (transcriptionBusy) return;
     _scheduleRecovery();
@@ -820,6 +840,7 @@ class _SubtitlePreviewPageState extends State<SubtitlePreviewPage> {
               icon: const Icon(Icons.first_page), label: const Text('Fillimi = video')),
             OutlinedButton.icon(onPressed: () => _markCueBoundary(cueIndex, start: false),
               icon: const Icon(Icons.last_page), label: const Text('Fundi = video')),
+             OutlinedButton.icon(onPressed: () => _alignAllToCue(cueIndex), icon: const Icon(Icons.sync), label: const Text('Sinkronizo të gjithë këtu')),
           ]),
         ),
         const SizedBox(height: 8), SelectableText(cue.original, style: const TextStyle(fontSize: 17)), const SizedBox(height: 8),

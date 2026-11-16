@@ -16,7 +16,8 @@ List<SubtitleCue> shiftSubtitleTiming(List<SubtitleCue> cues, Duration offset) {
   // milliseconds only at the final serialization boundary.
   final delta = offset.inMicroseconds;
   if (cues.any((cue) => cue.start.isNegative ||
-      cue.start.inMicroseconds + delta < 0 || cue.end <= cue.start)) {
+      cue.start.inMicroseconds + delta < 0 ||
+      cue.end.inMicroseconds + delta < 0 || cue.end <= cue.start)) {
     throw const FormatException('Subtitle timing is negative or invalid');
   }
   return [

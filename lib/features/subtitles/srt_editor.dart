@@ -245,7 +245,9 @@ List<SubtitleCue> retimeSubtitlePassage(
       final end = map(cue.end);
       // Very short cues can collapse when a long passage is compressed.
       // Reject them instead of exporting zero-duration SRT/WebVTT cues.
-      if (end <= start) {
+      if (end <= start || end.inMilliseconds <= start.inMilliseconds) {
+        // Export uses millisecond timestamps: even a positive microsecond
+        // interval may collapse into a zero-length SRT/VTT subtitle.
         throw const FormatException('Retiming would collapse a subtitle');
       }
       result.add(SubtitleCue(start: start, end: end,

@@ -47,7 +47,8 @@ SubtitleTimelineReport validateTimeline(List<SubtitleCue> cues) {
   // imported cues can be out of order. Return original editor indexes.
   for (var i = 0; i < cues.length; i++) {
     final cue = cues[i];
-    if ((cue.original.trim().isEmpty && cue.translation.trim().isEmpty) ||
+    final selectedText = translated && cue.translation.trim().isNotEmpty ? cue.translation : cue.original;
+    if (selectedText.trim().isEmpty ||
         cue.start.isNegative || cue.end <= cue.start) {
       empty.add(i);
     }
@@ -77,7 +78,7 @@ String _timestamp(Duration time) {
   final milliseconds = (time.inMilliseconds % 1000).toString().padLeft(3, '0');
   return '$hours:$minutes:$seconds,$milliseconds';
 }
-void _validateExportTiming(List<SubtitleCue> cues) {
+void _validateExportTiming(List<SubtitleCue> cues, {required bool translated}) {
   for (final cue in cues) {
     if ((cue.original.trim().isEmpty && cue.translation.trim().isEmpty) ||
         cue.start.isNegative || cue.end <= cue.start ||
@@ -90,7 +91,7 @@ void _validateExportTiming(List<SubtitleCue> cues) {
 }
 
 String exportSrt(List<SubtitleCue> cues, {bool translated = true}) {
-  _validateExportTiming(cues);
+  _validateExportTiming(cues, translated: translated);
   return cues.asMap().entries.map((entry) {
     final cue = entry.value;
     final text = translated && cue.translation.trim().isNotEmpty ? cue.translation : cue.original;
@@ -100,7 +101,7 @@ String exportSrt(List<SubtitleCue> cues, {bool translated = true}) {
 
 /// Exports WebVTT without changing the source cue timings.
 String exportVtt(List<SubtitleCue> cues, {bool translated = true}) {
-  _validateExportTiming(cues);
+  _validateExportTiming(cues, translated: translated);
   final body = cues.map((cue) {
     final text = translated && cue.translation.trim().isNotEmpty ? cue.translation : cue.original;
     final start = _timestamp(cue.start).replaceAll(',', '.');

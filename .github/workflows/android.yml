@@ -148,7 +148,7 @@ jobs:
                   colors = rgb.getcolors(maxcolors=size * size)
                   assert colors is not None and len(colors) >= 3, f'Blank or placeholder icon: {path}'
                   assert any(r > 130 and g > 90 and b < 180 for _, (r, g, b) in colors), f'Branded gold accent missing: {path}'
-                  assert ImageChops.difference(icon.convert('RGBA'), round_icon.convert('RGBA')).getbbox() is None, f'Round icon differs from branded icon: {density}'
+                  assert icon.convert('RGBA').tobytes() == round_icon.convert('RGBA').tobytes(), f'Round icon differs from branded icon: {density}'
           print('Five original gold-accented launcher and Samsung round icons verified')
           PY
       - name: Reject generic Android launcher and verify branded artwork
@@ -181,7 +181,7 @@ jobs:
               assert regular.is_file() and round_icon.is_file(), f'Missing branded icon at {density}'
               with Image.open(regular) as original, Image.open(round_icon) as rounded:
                   assert original.size == rounded.size, f'Icon dimensions differ at {density}'
-                  assert ImageChops.difference(original.convert('RGBA'), rounded.convert('RGBA')).getbbox() is None, f'Round launcher does not match original at {density}'
+                  assert original.convert('RGBA').tobytes() == rounded.convert('RGBA').tobytes(), f'Round launcher does not match original at {density}'
           print('Samsung round and regular launchers match at all five densities')
           PY
       - name: Test authenticated AI proxy
@@ -263,7 +263,7 @@ jobs:
                       original_rgba = original.convert('RGBA')
                       built_rgba = built.convert('RGBA')
                       assert original_rgba.size == built_rgba.size, f'{density} launcher size changed'
-                      assert ImageChops.difference(original_rgba, built_rgba).getbbox() is None, f'{density} launcher pixels changed in APK'
+                      assert original_rgba.tobytes() == built_rgba.tobytes(), f'{density} launcher pixels changed in APK'
           print('All five Samsung launcher densities match original branded artwork pixel-for-pixel')
           PY
       - name: Verify Samsung S23 APK signing and Android compatibility
@@ -373,7 +373,7 @@ jobs:
                   assert len(matches) == 1, f'Expected one packaged branded launcher for {density}, found {matches}'
                   with Image.open(original) as source, Image.open(BytesIO(archive.read(matches[0]))) as packaged:
                       a, b = source.convert('RGB'), packaged.convert('RGB')
-                      assert a.size == b.size and ImageChops.difference(a, b).getbbox() is None, (
+                      assert a.size == b.size and a.tobytes() == b.tobytes(), (
                           f'Packaged launcher differs from approved original artwork: {density}')
           print('All five compiled APK launcher PNGs match original branded artwork pixel-for-pixel')
           PY
@@ -394,7 +394,7 @@ jobs:
                   assert len(matches) == 1, f'Expected one packaged Samsung round icon at {density}, found {matches}'
                   with Image.open(source) as original, Image.open(BytesIO(archive.read(matches[0]))) as packaged:
                       a, b = original.convert('RGBA'), packaged.convert('RGBA')
-                      assert a.size == b.size and ImageChops.difference(a, b).getbbox() is None, f'Packaged Samsung round icon changed: {density}'
+                      assert a.size == b.size and a.tobytes() == b.tobytes(), f'Packaged Samsung round icon changed: {density}'
           print('All five Samsung One UI round icons match original artwork inside APK')
           PY
       - name: Verify APKs and produce SHA-256 checksums

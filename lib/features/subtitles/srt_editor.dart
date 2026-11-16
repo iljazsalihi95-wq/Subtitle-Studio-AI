@@ -79,7 +79,8 @@ String _timestamp(Duration time) {
 }
 void _validateExportTiming(List<SubtitleCue> cues) {
   for (final cue in cues) {
-    if (cue.start.isNegative || cue.end <= cue.start ||
+    if ((cue.original.trim().isEmpty && cue.translation.trim().isEmpty) ||
+        cue.start.isNegative || cue.end <= cue.start ||
         cue.end.inMilliseconds <= cue.start.inMilliseconds) {
       // SRT/VTT timestamps have millisecond precision. Reject intervals
       // that would become zero-length after serialization.

@@ -397,6 +397,18 @@ jobs:
                       assert a.size == b.size and a.tobytes() == b.tobytes(), f'Packaged Samsung round icon changed: {density}'
           print('All five Samsung One UI round icons match original artwork inside APK')
           PY
+      - name: Verify installed app identity and launcher metadata in compiled APK
+        run: |
+          set -euo pipefail
+          APK=build/app/outputs/flutter-apk/app-arm64-v8a-debug.apk
+          AAPT=$(find "$ANDROID_HOME/build-tools" -maxdepth 2 -type f -name aapt | sort -V | tail -1)
+          test -x "$AAPT" && test -s "$APK"
+          "$AAPT" dump badging "$APK" > /tmp/s23-badging.txt
+          grep -Fq "package: name='com.example.subtitle_studio_ai'" /tmp/s23-badging.txt
+          grep -Fq "application-label:'Subtitle Studio AI'" /tmp/s23-badging.txt
+          grep -Eq "^application-icon-[0-9]+:" /tmp/s23-badging.txt
+          grep -Fq "native-code: 'arm64-v8a'" /tmp/s23-badging.txt
+          echo 'Compiled APK identity, label, launcher and ARM64 metadata verified'
       - name: Verify APKs and produce SHA-256 checksums
         run: |
           set -e

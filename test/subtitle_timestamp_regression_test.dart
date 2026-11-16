@@ -2,6 +2,21 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:subtitle_studio_ai/features/subtitles/srt_editor.dart';
 
 void main() {
+  test('Timing shifts preserve sub-millisecond precision until export', () {
+    final cue = SubtitleCue(
+      start: const Duration(microseconds: 1500),
+      end: const Duration(microseconds: 2500),
+      original: 'Test',
+    );
+    final shifted = shiftSubtitleTiming([cue], const Duration(microseconds: -500));
+    expect(shifted.single.start.inMicroseconds, 1000);
+    expect(shifted.single.end.inMicroseconds, 2000);
+    expect(
+      () => shiftSubtitleTiming([cue], const Duration(microseconds: -1501)),
+      throwsFormatException,
+    );
+  });
+
   test('SRT timestamp with one digit fraction is scaled to milliseconds', () {
     final cues = parseSubtitles('1\n00:00:01,5 --> 00:00:02,25\nPërshëndetje');
     expect(cues, hasLength(1));

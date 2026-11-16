@@ -55,3 +55,18 @@ key.properties
 **/exports/
 *.srt.bak
 *.vtt.bak
+
+# Never accidentally publish local subtitle/video/audio inputs or rendered output
+*.srt
+*.vtt
+*.ass
+*.ssa
+*.sub
+*.mp4
+*.mkv
+*.mov
+*.webm
+*.mp3
+*.m4a
+*.wav
+*.flac

@@ -331,6 +331,30 @@ jobs:
           assert not unexpected, 'Sensitive Android permissions unexpectedly packaged: ' + ', '.join(unexpected)
           print('APK privacy permission gate passed')
           PY
+      - name: Verify original launcher artwork inside compiled Samsung APK
+        run: |
+          python3 - <<'PY'
+          from io import BytesIO
+          from pathlib import Path
+          from zipfile import ZipFile
+          from PIL import Image, ImageChops
+          apk = Path('build/app/outputs/flutter-apk/app-arm64-v8a-debug.apk')
+          assert apk.is_file(), 'Compiled APK missing'
+          with ZipFile(apk) as archive:
+              entries = archive.namelist()
+              for density in ('mdpi', 'hdpi', 'xhdpi', 'xxhdpi', 'xxxhdpi'):
+                  original = Path(f'android/app/src/main/res/mipmap-{density}/ic_launcher.png')
+                  assert original.is_file(), f'Missing original icon: {density}'
+                  matches = [name for name in entries
+                             if name.startswith(f'res/mipmap-{density}')
+                             and name.endswith('/ic_launcher.png')]
+                  assert len(matches) == 1, f'Expected one packaged branded launcher for {density}, found {matches}'
+                  with Image.open(original) as source, Image.open(BytesIO(archive.read(matches[0]))) as packaged:
+                      a, b = source.convert('RGBA'), packaged.convert('RGBA')
+                      assert a.size == b.size and ImageChops.difference(a, b).getbbox() is None, (
+                          f'Packaged launcher differs from approved original artwork: {density}')
+          print('All five compiled APK launcher PNGs match original branded artwork pixel-for-pixel')
+          PY
       - name: Verify APKs and produce SHA-256 checksums
         run: |
           set -e

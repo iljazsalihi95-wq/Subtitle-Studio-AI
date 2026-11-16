@@ -1,6 +1,12 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:subtitle_studio_ai/features/subtitles/srt_editor.dart';
 void main() {
+  test('Export refuses blank selected language rather than writing invisible cues', () {
+    const translatedOnly = SubtitleCue(start: Duration(seconds: 1), end: Duration(seconds: 2), original: '', translation: 'Përshëndetje');
+    expect(exportSrt([translatedOnly]), contains('Përshëndetje'));
+    expect(() => exportSrt([translatedOnly], translated: false), throwsFormatException);
+    expect(() => exportVtt([translatedOnly], translated: false), throwsFormatException);
+  });
   test('Translation keeps original timecodes', () {
     final cue = SubtitleCue(start: const Duration(seconds: 1), end: const Duration(milliseconds: 3500), original: 'Merhaba').translated('Përshëndetje');
     expect(exportSrt([cue]), contains('00:00:01,000 --> 00:00:03,500'));

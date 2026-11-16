@@ -377,6 +377,26 @@ jobs:
                           f'Packaged launcher differs from approved original artwork: {density}')
           print('All five compiled APK launcher PNGs match original branded artwork pixel-for-pixel')
           PY
+      - name: Verify packaged Samsung round icons match original artwork
+        run: |
+          python3 - <<'PY'
+          from io import BytesIO
+          from pathlib import Path
+          from zipfile import ZipFile
+          from PIL import Image, ImageChops
+          apk = Path('build/app/outputs/flutter-apk/app-arm64-v8a-debug.apk')
+          with ZipFile(apk) as archive:
+              entries = archive.namelist()
+              for density in ('mdpi', 'hdpi', 'xhdpi', 'xxhdpi', 'xxxhdpi'):
+                  source = Path(f'android/app/src/main/res/mipmap-{density}/ic_launcher_round.png')
+                  assert source.is_file(), f'Missing Samsung round source icon: {density}'
+                  matches = [name for name in entries if name.startswith(f'res/mipmap-{density}') and name.endswith('/ic_launcher_round.png')]
+                  assert len(matches) == 1, f'Expected one packaged Samsung round icon at {density}, found {matches}'
+                  with Image.open(source) as original, Image.open(BytesIO(archive.read(matches[0]))) as packaged:
+                      a, b = original.convert('RGBA'), packaged.convert('RGBA')
+                      assert a.size == b.size and ImageChops.difference(a, b).getbbox() is None, f'Packaged Samsung round icon changed: {density}'
+          print('All five Samsung One UI round icons match original artwork inside APK')
+          PY
       - name: Verify APKs and produce SHA-256 checksums
         run: |
           set -e

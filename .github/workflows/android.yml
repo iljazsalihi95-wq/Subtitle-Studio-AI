@@ -461,7 +461,7 @@ jobs:
           PY
       - uses: actions/upload-artifact@v4
         with:
-          name: samsung-s23-arm64-debug-apk
+          name: subtitle-studio-s23-arm64-debug-apk
           if-no-files-found: error
           retention-days: 30
           compression-level: 0

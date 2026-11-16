@@ -32,13 +32,13 @@ void main() {
     expect(cues.single.end.inMilliseconds, 2500);
   });
 
-  test('WebVTT short timestamps reject minute values above 59', () {
+  test('WebVTT short timestamps accept elapsed minutes beyond one hour', () {
+    final cues = parseSubtitles('WEBVTT\n\n60:00.000 --> 60:01.000\nPas një ore');
+    expect(cues, hasLength(1));
+    expect(cues.single.start.inMilliseconds, 3600000);
+    expect(cues.single.end.inMilliseconds, 3601000);
     expect(
-      () => parseSubtitles('WEBVTT\n\n60:00.000 --> 60:01.000\nGabim'),
-      throwsFormatException,
-    );
-    expect(
-      () => parseSubtitles('WEBVTT\n\n59:59.000 --> 60:00.000\nGabim'),
+      () => parseSubtitles('WEBVTT\n\n59:60.000 --> 60:01.000\nGabim'),
       throwsFormatException,
     );
   });

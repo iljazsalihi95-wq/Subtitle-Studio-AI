@@ -17,6 +17,17 @@ void main() {
     expect(cues.single.end.inMilliseconds, 2500);
   });
 
+  test('WebVTT short timestamps reject minute values above 59', () {
+    expect(
+      () => parseSubtitles('WEBVTT\n\n60:00.000 --> 60:01.000\nGabim'),
+      throwsFormatException,
+    );
+    expect(
+      () => parseSubtitles('WEBVTT\n\n59:59.000 --> 60:00.000\nGabim'),
+      throwsFormatException,
+    );
+  });
+
   test('Invalid timestamps are rejected rather than silently retimed', () {
     expect(
       () => parseSubtitles('1\n00:00:61,000 --> 00:01:02,000\nGabim'),

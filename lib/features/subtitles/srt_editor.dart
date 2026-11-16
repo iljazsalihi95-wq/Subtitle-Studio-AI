@@ -13,8 +13,8 @@ class SubtitleCue {
 /// Rejects shifts that would place a subtitle before the start of the video.
 List<SubtitleCue> shiftSubtitleTiming(List<SubtitleCue> cues, Duration offset) {
   final delta = offset.inMilliseconds;
-  if (cues.any((cue) => cue.start.inMilliseconds + delta < 0 ||
-      cue.end <= cue.start)) {
+  if (cues.any((cue) => cue.start.isNegative ||
+      cue.start.inMilliseconds + delta < 0 || cue.end <= cue.start)) {
     throw const FormatException('Subtitle timing is negative or invalid');
   }
   return [

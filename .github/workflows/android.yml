@@ -344,6 +344,9 @@ jobs:
               'android.permission.WRITE_CALL_LOG',
               'android.permission.READ_CONTACTS',
               'android.permission.WRITE_CONTACTS',
+              'android.permission.MANAGE_EXTERNAL_STORAGE',
+              'android.permission.QUERY_ALL_PACKAGES',
+              'android.permission.REQUEST_INSTALL_PACKAGES',
           }
           found = set(re.findall(r"name='([^']+)'", permissions))
           unexpected = sorted(found & blocked)

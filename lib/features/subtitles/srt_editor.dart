@@ -12,16 +12,18 @@ class SubtitleCue {
 /// Moves all cue timestamps by [offset] without modifying text.
 /// Rejects shifts that would place a subtitle before the start of the video.
 List<SubtitleCue> shiftSubtitleTiming(List<SubtitleCue> cues, Duration offset) {
-  final delta = offset.inMilliseconds;
+  // Keep sub-millisecond precision while editing; export rounds to SRT/VTT
+  // milliseconds only at the final serialization boundary.
+  final delta = offset.inMicroseconds;
   if (cues.any((cue) => cue.start.isNegative ||
-      cue.start.inMilliseconds + delta < 0 || cue.end <= cue.start)) {
+      cue.start.inMicroseconds + delta < 0 || cue.end <= cue.start)) {
     throw const FormatException('Subtitle timing is negative or invalid');
   }
   return [
     for (final cue in cues)
       SubtitleCue(
-        start: Duration(milliseconds: cue.start.inMilliseconds + delta),
-        end: Duration(milliseconds: cue.end.inMilliseconds + delta),
+        start: Duration(microseconds: cue.start.inMicroseconds + delta),
+        end: Duration(microseconds: cue.end.inMicroseconds + delta),
         original: cue.original,
         translation: cue.translation,
       ),

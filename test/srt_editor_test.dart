@@ -60,6 +60,13 @@ void main() {
     expect(() => shiftSubtitleTiming(cues, const Duration(milliseconds: -200)), throwsFormatException);
   });
 
+  test('shift refuses a malformed negative source cue even if offset makes it positive', () {
+    const cues = [
+      SubtitleCue(start: Duration(milliseconds: -100), end: Duration(seconds: 2), original: 'Invalid source'),
+    ];
+    expect(() => shiftSubtitleTiming(cues, const Duration(seconds: 1)), throwsFormatException);
+  });
+
   test('shift rejects reversed or zero-length cue intervals', () {
     final invalid = [
       SubtitleCue(start: const Duration(seconds: 4), end: const Duration(seconds: 3), original: 'Invalid'),

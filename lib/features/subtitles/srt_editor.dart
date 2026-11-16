@@ -47,8 +47,7 @@ SubtitleTimelineReport validateTimeline(List<SubtitleCue> cues) {
   // imported cues can be out of order. Return original editor indexes.
   for (var i = 0; i < cues.length; i++) {
     final cue = cues[i];
-    final selectedText = translated && cue.translation.trim().isNotEmpty ? cue.translation : cue.original;
-    if (selectedText.trim().isEmpty ||
+    if ((cue.original.trim().isEmpty && cue.translation.trim().isEmpty) ||
         cue.start.isNegative || cue.end <= cue.start) {
       empty.add(i);
     }
@@ -80,7 +79,8 @@ String _timestamp(Duration time) {
 }
 void _validateExportTiming(List<SubtitleCue> cues, {required bool translated}) {
   for (final cue in cues) {
-    if ((cue.original.trim().isEmpty && cue.translation.trim().isEmpty) ||
+    final selectedText = translated && cue.translation.trim().isNotEmpty ? cue.translation : cue.original;
+    if (selectedText.trim().isEmpty ||
         cue.start.isNegative || cue.end <= cue.start ||
         cue.end.inMilliseconds <= cue.start.inMilliseconds) {
       // SRT/VTT timestamps have millisecond precision. Reject intervals

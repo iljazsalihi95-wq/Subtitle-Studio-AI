@@ -119,7 +119,10 @@ Duration _parseTimestamp(String value) {
   final minutes = int.parse(match.group(2)!);
   final seconds = int.parse(match.group(3)!);
   final milliseconds = int.parse(match.group(4)!.padRight(3, '0'));
-  if (minutes >= 60 || seconds >= 60) {
+  // Two-component WebVTT timecodes can represent elapsed minutes beyond
+  // the first hour (e.g. 61:02.125). Three-component timestamps must keep
+  // their minute field in the conventional 00..59 range.
+  if ((match.group(1) != null && minutes >= 60) || seconds >= 60) {
     throw FormatException('Invalid subtitle timestamp: $value');
   }
   return Duration(hours: hours, minutes: minutes, seconds: seconds, milliseconds: milliseconds);

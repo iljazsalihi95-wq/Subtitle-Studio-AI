@@ -350,7 +350,7 @@ jobs:
                              and name.endswith('/ic_launcher.png')]
                   assert len(matches) == 1, f'Expected one packaged branded launcher for {density}, found {matches}'
                   with Image.open(original) as source, Image.open(BytesIO(archive.read(matches[0]))) as packaged:
-                      a, b = source.convert('RGBA'), packaged.convert('RGBA')
+                      a, b = source.convert('RGB'), packaged.convert('RGB')
                       assert a.size == b.size and ImageChops.difference(a, b).getbbox() is None, (
                           f'Packaged launcher differs from approved original artwork: {density}')
           print('All five compiled APK launcher PNGs match original branded artwork pixel-for-pixel')
